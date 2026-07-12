@@ -1,0 +1,14 @@
+{
+  "name": "@houkago/protocol",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --pretty false"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

@@ -17,8 +17,20 @@ export default defineConfig({
       use: { ...devices["Pixel 7"] },
     },
     {
-      name: "ios-safari",
-      use: { ...devices["iPhone 13"] },
+      name: "iphone-17-pro-safari",
+      use: {
+        ...devices["iPhone 15 Pro"],
+        deviceScaleFactor: 3,
+        viewport: { width: 402, height: 874 },
+      },
+    },
+    {
+      name: "iphone-17-pro-max-safari",
+      use: {
+        ...devices["iPhone 15 Pro"],
+        deviceScaleFactor: 3,
+        viewport: { width: 440, height: 956 },
+      },
     },
   ],
   webServer: {

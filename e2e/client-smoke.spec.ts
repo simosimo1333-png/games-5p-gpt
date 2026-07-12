@@ -18,3 +18,20 @@ test("縦向きでは横向き案内を表示する", async ({ page }) => {
   await expect(page.locator("#orientation-hint")).toBeHidden();
   await page.close();
 });
+
+test("canvas stays inside the latest iPhone viewport", async ({ page }) => {
+  await page.goto("/");
+
+  const viewport = page.viewportSize();
+  const canvas = await page.locator("canvas").boundingBox();
+
+  expect(viewport).not.toBeNull();
+  expect(canvas).not.toBeNull();
+
+  if (viewport && canvas) {
+    expect(canvas.x).toBeGreaterThanOrEqual(0);
+    expect(canvas.y).toBeGreaterThanOrEqual(0);
+    expect(canvas.x + canvas.width).toBeLessThanOrEqual(viewport.width);
+    expect(canvas.y + canvas.height).toBeLessThanOrEqual(viewport.height);
+  }
+});
