@@ -5,11 +5,10 @@
 ```text
 games-5p-gpt/
 ├─ README.md
-├─ index.html
-└─ houkago-dash-starter.zip
+└─ index.html
 ```
 
-`index.html` に表示、入力、物理、UI、ステージ定義が集中している。ZIPは生成元と更新手順が不明なため、現時点では削除せず、別Issueで扱いを決める。
+`index.html` に表示、入力、物理、UI、ステージ定義が集中している。以前存在したZIPは内容を調査後に削除し、通常のファイルとして確認できる内容を正式なソースとした。詳細は `docs/artifact-policy.md` を参照する。
 
 ## 移行後の目標
 
