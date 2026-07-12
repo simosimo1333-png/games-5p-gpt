@@ -40,6 +40,12 @@ npm run typecheck
 npm run build
 ```
 
+Pull Requestと `main` への変更では、GitHub Actionsが整形、Lint、型、単体テスト、ビルド、モバイル画面のスモークテストを自動実行します。ローカルでは次のコマンドで主要確認をまとめて実行できます。
+
+```bash
+npm run check
+```
+
 現在のゲーム機能は、動作を確認しながら新しいクライアントへ段階的に移行します。
 
 ### 操作

@@ -1,9 +1,7 @@
 import Phaser from "phaser";
 
+import { GAME_HEIGHT, GAME_WIDTH } from "./config/game";
 import "./style.css";
-
-const GAME_WIDTH = 1280;
-const GAME_HEIGHT = 720;
 
 class FoundationScene extends Phaser.Scene {
   constructor() {
