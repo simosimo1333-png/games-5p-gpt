@@ -66,6 +66,7 @@ python -m http.server 8000
 | 文書 | 内容 |
 | --- | --- |
 | [ゲーム企画書](docs/game-design.md) | 対象ユーザー、ゲームループ、協力要素、成功指標 |
+| [協力プレイMVP仕様](docs/mvp-spec.md) | 2人版と6人版のルール、切断対応、完了条件 |
 | [現状分析と問題点](docs/current-state-analysis.md) | 現行コードの解析、リスク、優先順位 |
 | [技術設計書](docs/technical-design.md) | クライアント、サーバー、通信、テスト、運用の設計 |
 | [開発ロードマップ](docs/roadmap.md) | 段階的な開発計画と各フェーズの完了条件 |
