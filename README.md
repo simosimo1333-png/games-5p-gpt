@@ -49,6 +49,7 @@ python -m http.server 8000
 - [技術設計書](docs/technical-design.md)
 - [開発ロードマップ](docs/roadmap.md)
 - [目標ディレクトリ構成](docs/directory-structure.md)
+- [ソースと成果物の管理方針](docs/artifact-policy.md)
 
 ## 開発方針
 
@@ -70,6 +71,7 @@ python -m http.server 8000
 | [開発ロードマップ](docs/roadmap.md) | 段階的な開発計画と各フェーズの完了条件 |
 | [ディレクトリ構成](docs/directory-structure.md) | 移行後の構成と責務 |
 | [Issueバックログ](docs/issue-backlog.md) | 今後の開発タスク、依存関係、完了条件 |
+| [ソースと成果物の管理方針](docs/artifact-policy.md) | 正式なソース、ZIP、将来の配布物の扱い |
 
 ## コントリビューション
 
