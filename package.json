@@ -1,0 +1,21 @@
+{
+  "name": "houkago-dash",
+  "private": true,
+  "version": "0.1.0",
+  "description": "放課後ダッシュ！ — 最大6人のスマートフォン向け協力アクションゲーム",
+  "packageManager": "npm@11.13.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @houkago/client",
+    "dev:client": "npm run dev --workspace @houkago/client",
+    "build": "npm run build --workspaces --if-present",
+    "build:client": "npm run build --workspace @houkago/client",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}
