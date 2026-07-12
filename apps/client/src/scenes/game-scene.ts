@@ -1,17 +1,15 @@
 import Phaser from "phaser";
 
 import { PlayerController } from "../entities/player-controller";
-import { InputState } from "../input/input-state";
-import { KeyboardInput } from "../input/keyboard-input";
+import { GoalController } from "../gameplay/goal-controller";
+import { InputController } from "../input/input-controller";
 import { SCHOOL_GATE_STAGE } from "../stages/school-gate";
 import { Hud } from "../ui/hud";
-import { TouchControls } from "../ui/touch-controls";
 
 export class GameScene extends Phaser.Scene {
-  private readonly inputState = new InputState();
   private finished = false;
   private hud!: Hud;
-  private keyboardInput!: KeyboardInput;
+  private inputController!: InputController;
   private player!: PlayerController;
   private startedAt = 0;
 
@@ -21,7 +19,6 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.finished = false;
-    this.inputState.reset();
     this.physics.resume();
     this.physics.world.setBounds(
       0,
@@ -60,25 +57,8 @@ export class GameScene extends Phaser.Scene {
     this.player = new PlayerController(this, SCHOOL_GATE_STAGE.playerSpawn);
     this.physics.add.collider(this.player.sprite, platforms);
 
-    const finish = this.add.rectangle(
-      SCHOOL_GATE_STAGE.finish.x,
-      SCHOOL_GATE_STAGE.finish.y,
-      SCHOOL_GATE_STAGE.finish.width,
-      SCHOOL_GATE_STAGE.finish.height,
-      0xfacc15,
-    );
-    this.physics.add.existing(finish, true);
-    this.physics.add.overlap(this.player.sprite, finish, () => this.finish());
-    this.add.text(2780, 310, "校門\nGOAL", {
-      align: "center",
-      fontFamily: "system-ui",
-      fontSize: "30px",
-      fontStyle: "bold",
-      color: "#7c2d12",
-    });
-
-    this.keyboardInput = new KeyboardInput(this);
-    new TouchControls(this, this.inputState);
+    new GoalController(this, this.player.sprite, SCHOOL_GATE_STAGE.finish, () => this.finish());
+    this.inputController = new InputController(this);
     this.hud = new Hud(this);
     this.cameras.main.startFollow(this.player.sprite, true, 0.08, 0.08, -240, 80);
     this.cameras.main.setBounds(
@@ -92,8 +72,7 @@ export class GameScene extends Phaser.Scene {
 
   override update(): void {
     if (this.finished) return;
-    const keyboard = this.keyboardInput.read();
-    this.player.update(this.inputState.consume(keyboard));
+    this.player.update(this.inputController.read());
     this.player.recoverIfFallen(690);
     this.hud.update((performance.now() - this.startedAt) / 1000);
   }
@@ -101,7 +80,7 @@ export class GameScene extends Phaser.Scene {
   private finish(): void {
     if (this.finished) return;
     this.finished = true;
-    this.inputState.reset();
+    this.inputController.reset();
     this.physics.pause();
     this.scene.start("result", { elapsedSeconds: (performance.now() - this.startedAt) / 1000 });
   }
