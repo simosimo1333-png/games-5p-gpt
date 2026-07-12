@@ -1,6 +1,9 @@
 import Phaser from "phaser";
 
 import { GAME_HEIGHT, GAME_WIDTH } from "./config/game";
+import { WORLD_PHYSICS } from "./config/physics";
+import { SCHOOL_GATE_STAGE } from "./stages/school-gate";
+import { validateStage } from "./stages/validate";
 import "./style.css";
 
 class FoundationScene extends Phaser.Scene {
@@ -9,7 +12,14 @@ class FoundationScene extends Phaser.Scene {
   }
 
   create(): void {
+    const stageErrors = validateStage(SCHOOL_GATE_STAGE);
+    if (stageErrors.length > 0) throw new Error(stageErrors.join("; "));
+
     this.cameras.main.setBackgroundColor("#a7d8ff");
+
+    for (const platform of SCHOOL_GATE_STAGE.platforms) {
+      this.add.rectangle(platform.x, platform.y, platform.width, platform.height, platform.color);
+    }
 
     this.add
       .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 70, "放課後ダッシュ！", {
@@ -48,6 +58,10 @@ new Phaser.Game({
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   backgroundColor: "#a7d8ff",
+  physics: {
+    default: "arcade",
+    arcade: { gravity: { x: 0, y: WORLD_PHYSICS.gravityY }, debug: false },
+  },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
