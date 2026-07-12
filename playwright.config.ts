@@ -13,8 +13,12 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "mobile-chromium",
+      name: "android-chrome",
       use: { ...devices["Pixel 7"] },
+    },
+    {
+      name: "ios-safari",
+      use: { ...devices["iPhone 13"] },
     },
   ],
   webServer: {
@@ -22,6 +26,8 @@ export default defineConfig({
     cwd: "apps/client",
     port: 4173,
     reuseExistingServer: !process.env.CI,
+    stderr: "ignore",
+    stdout: "ignore",
     timeout: 120_000,
   },
 });
