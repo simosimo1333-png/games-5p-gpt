@@ -7,6 +7,7 @@ export const SCHOOL_GATE_STAGE = {
   playerSpawn: { x: 150, y: 500 },
   finish: { x: 2850, y: 470, width: 24, height: 240 },
   platforms: [
+    { id: "ground", x: 1600, y: 650, width: 3200, height: 140, color: 0x84a85c },
     { id: "desk-1", x: 480, y: 530, width: 240, height: 32, color: 0xd9b38c },
     { id: "desk-2", x: 820, y: 450, width: 180, height: 32, color: 0xd9b38c },
     { id: "desk-3", x: 1180, y: 380, width: 220, height: 32, color: 0xd9b38c },

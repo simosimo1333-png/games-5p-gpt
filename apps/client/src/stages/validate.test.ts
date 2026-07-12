@@ -15,7 +15,7 @@ describe("stage validation", () => {
       platforms: [SCHOOL_GATE_STAGE.platforms[0], SCHOOL_GATE_STAGE.platforms[0]],
     };
 
-    expect(validateStage(stage)).toContain("duplicate platform id: desk-1");
+    expect(validateStage(stage)).toContain("duplicate platform id: ground");
   });
 
   it("rejects stage elements outside the world", () => {

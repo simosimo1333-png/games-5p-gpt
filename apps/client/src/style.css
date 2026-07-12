@@ -22,6 +22,15 @@ body,
   overflow: hidden;
 }
 
+#app {
+  position: fixed;
+  inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+  width: auto;
+  height: auto;
+  touch-action: none;
+}
+
 body {
   min-width: 320px;
   min-height: 100dvh;
@@ -31,4 +40,25 @@ body {
 canvas {
   display: block;
   margin: auto;
+}
+
+#orientation-hint {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  place-items: center;
+  padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+  color: #fff;
+  background: #07111ff2;
+  font-size: clamp(20px, 6vw, 32px);
+  font-weight: 800;
+  text-align: center;
+}
+
+@media (orientation: portrait) and (pointer: coarse) {
+  #orientation-hint {
+    display: grid;
+  }
 }
