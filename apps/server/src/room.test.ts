@@ -96,6 +96,62 @@ describe("authoritative room", () => {
     expect(room.gateOpen).toBe(true);
   });
 
+  it("applies server-authoritative role abilities", () => {
+    const room = new Room("ABCDE", "p1", "Runner", 0);
+    room.join("p2", "Jumper", 0);
+    room.setRole("p1", "runner");
+    room.setRole("p2", "jumper");
+    room.setReady("p1", true);
+    room.setReady("p2", true);
+    room.start("p1", 0);
+    room.tick(3_000);
+    room.applyInput("p1", { sequence: 1, left: false, right: true, jump: false }, 3_001);
+    room.applyInput("p2", { sequence: 1, left: false, right: false, jump: true }, 3_001);
+    room.tick(3_050);
+    const snapshot = room.snapshot(3_050);
+    expect(snapshot.players.find((player) => player.id === "p1")?.velocityX).toBe(310);
+    expect(snapshot.players.find((player) => player.id === "p2")?.velocityY).toBeLessThan(-500);
+    expect(() => room.setRole("p1", "supporter")).toThrowError(
+      expect.objectContaining({ code: "ROOM_ALREADY_STARTED" }),
+    );
+  });
+
+  it("lets a nearby teammate rescue a downed player and has an automatic fallback", () => {
+    const room = new Room("ABCDE", "p1", "Helper", 0);
+    room.join("p2", "Fallen", 0);
+    room.setRole("p1", "supporter");
+    room.setReady("p1", true);
+    room.setReady("p2", true);
+    room.start("p1", 0);
+    room.tick(3_000);
+    room.gateOpen = true;
+    const helper = room.players.get("p1");
+    const fallen = room.players.get("p2");
+    expect(helper).toBeDefined();
+    expect(fallen).toBeDefined();
+    if (!helper || !fallen) return;
+    helper.x = 2_200;
+    fallen.x = 2_220;
+    fallen.y = 681;
+    room.tick(3_050);
+    expect(room.snapshot(3_050).players.find((player) => player.id === "p2")?.downed).toBe(true);
+    room.applyInput(
+      "p1",
+      { sequence: 1, left: false, right: false, jump: false, action: true },
+      3_051,
+    );
+    room.tick(3_100);
+    expect(room.snapshot(3_100).players.find((player) => player.id === "p2")?.downed).toBe(false);
+    expect(helper.rescues).toBe(1);
+
+    fallen.x = 2_220;
+    fallen.y = 681;
+    room.tick(3_150);
+    expect(fallen.downed).toBe(true);
+    room.tick(8_200);
+    expect(fallen.downed).toBe(false);
+  });
+
   it("keeps six-player simulation inside the tick performance budget", () => {
     const room = new Room("ABCDE", "p1", "Player 1", 0);
     for (let index = 2; index <= 6; index += 1) room.join(`p${index}`, `Player ${index}`, 0);

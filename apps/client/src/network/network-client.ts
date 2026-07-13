@@ -2,6 +2,7 @@ import {
   parseServerMessage,
   PROTOCOL_VERSION,
   type ClientMessage,
+  type PlayerRole,
   type ServerMessage,
 } from "../../../../packages/protocol/src";
 
@@ -121,11 +122,14 @@ export class NetworkClient {
   setReady(ready: boolean): void {
     this.send({ version: PROTOCOL_VERSION, type: "set_ready", ready });
   }
+  setRole(role: PlayerRole): void {
+    this.send({ version: PROTOCOL_VERSION, type: "set_role", role });
+  }
   startGame(): void {
     this.send({ version: PROTOCOL_VERSION, type: "start_game" });
   }
-  sendInput(sequence: number, left: boolean, right: boolean, jump: boolean): void {
-    this.send({ version: PROTOCOL_VERSION, type: "input", sequence, left, right, jump });
+  sendInput(sequence: number, left: boolean, right: boolean, jump: boolean, action: boolean): void {
+    this.send({ version: PROTOCOL_VERSION, type: "input", sequence, left, right, jump, action });
   }
   voteRetry(retry: boolean): void {
     this.send({ version: PROTOCOL_VERSION, type: "retry_vote", retry });

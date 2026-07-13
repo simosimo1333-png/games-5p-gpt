@@ -46,8 +46,10 @@ canvas {
   position: fixed;
   z-index: 50;
   left: 50%;
-  top: 56%;
+  top: 50%;
   width: min(92vw, 760px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
   transform: translate(-50%, -50%);
   border-radius: 24px;
   background: rgb(255 255 255 / 94%);
@@ -62,6 +64,45 @@ canvas {
   display: grid;
   gap: 6px;
   font-weight: 700;
+}
+.how-to-play {
+  margin-bottom: 14px;
+  border-radius: 12px;
+  background: #eff6ff;
+  padding: 10px 14px;
+}
+.how-to-play summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+.how-to-play ol {
+  margin-bottom: 0;
+  padding-left: 24px;
+}
+#role-select {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 14px 0;
+  border: 2px solid #cbd5e1;
+  border-radius: 12px;
+}
+#role-select label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  border-radius: 10px;
+  background: #e2e8f0;
+  padding: 8px;
+}
+#role-select input {
+  min-height: auto;
+}
+#role-select small,
+#player-list small {
+  display: block;
+  color: #475569;
+  font-weight: 500;
 }
 .lobby-panel input,
 .lobby-panel button {
@@ -121,12 +162,17 @@ canvas {
   .lobby-panel {
     top: 50%;
     max-height: 86vh;
-    overflow: auto;
     padding: 14px max(14px, env(safe-area-inset-right)) 14px max(14px, env(safe-area-inset-left));
   }
   .lobby-panel input,
   .lobby-panel button {
     min-height: 42px;
+  }
+}
+
+@media (max-width: 620px) {
+  #role-select {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -11,6 +11,7 @@ describe("protocol runtime validation", () => {
       left: false,
       right: true,
       jump: false,
+      action: false,
     });
     expect(result.success).toBe(true);
   });
@@ -98,6 +99,7 @@ describe("protocol runtime validation", () => {
           velocityY: 0,
           lastProcessedInput: 0,
           finished: false,
+          downed: false,
         },
       ],
     });

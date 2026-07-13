@@ -1,5 +1,8 @@
-export const PROTOCOL_VERSION = 1 as const;
+export const PROTOCOL_VERSION = 2 as const;
 export const MAX_PLAYERS = 6 as const;
+
+export const PLAYER_ROLES = ["runner", "jumper", "supporter"] as const;
+export type PlayerRole = (typeof PLAYER_ROLES)[number];
 
 interface Envelope {
   version: typeof PROTOCOL_VERSION;
@@ -12,6 +15,7 @@ export interface PlayerSummary {
   ready: boolean;
   connected: boolean;
   color: string;
+  role: PlayerRole;
 }
 
 export interface PlayerSnapshot {
@@ -22,6 +26,7 @@ export interface PlayerSnapshot {
   velocityY: number;
   lastProcessedInput: number;
   finished: boolean;
+  downed: boolean;
 }
 
 export type ClientMessage =
@@ -33,9 +38,17 @@ export type ClientMessage =
       reconnectToken?: string;
     })
   | (Envelope & { type: "set_ready"; ready: boolean })
+  | (Envelope & { type: "set_role"; role: PlayerRole })
   | (Envelope & { type: "start_game" })
   | (Envelope & { type: "leave_room" })
-  | (Envelope & { type: "input"; sequence: number; left: boolean; right: boolean; jump: boolean })
+  | (Envelope & {
+      type: "input";
+      sequence: number;
+      left: boolean;
+      right: boolean;
+      jump: boolean;
+      action: boolean;
+    })
   | (Envelope & { type: "retry_vote"; retry: boolean })
   | (Envelope & { type: "ping"; sentAt: number });
 
@@ -133,7 +146,8 @@ function isPlayerSummary(value: unknown): value is PlayerSummary {
     typeof value.ready === "boolean" &&
     typeof value.connected === "boolean" &&
     typeof value.color === "string" &&
-    /^#[0-9A-F]{6}$/i.test(value.color)
+    /^#[0-9A-F]{6}$/i.test(value.color) &&
+    isPlayerRole(value.role)
   );
 }
 
@@ -146,7 +160,8 @@ function isPlayerSnapshot(value: unknown): value is PlayerSnapshot {
     isFiniteNumber(value.velocityX) &&
     isFiniteNumber(value.velocityY) &&
     isInteger(value.lastProcessedInput) &&
-    typeof value.finished === "boolean"
+    typeof value.finished === "boolean" &&
+    typeof value.downed === "boolean"
   );
 }
 
@@ -166,6 +181,8 @@ function isClientMessage(input: unknown): input is ClientMessage {
       );
     case "set_ready":
       return typeof input.ready === "boolean";
+    case "set_role":
+      return isPlayerRole(input.role);
     case "start_game":
     case "leave_room":
       return true;
@@ -174,7 +191,8 @@ function isClientMessage(input: unknown): input is ClientMessage {
         isInteger(input.sequence) &&
         typeof input.left === "boolean" &&
         typeof input.right === "boolean" &&
-        typeof input.jump === "boolean"
+        typeof input.jump === "boolean" &&
+        typeof input.action === "boolean"
       );
     case "retry_vote":
       return typeof input.retry === "boolean";
@@ -240,3 +258,5 @@ function isServerMessage(input: unknown): input is ServerMessage {
 
 export const clientMessageSchema = schema<ClientMessage>(isClientMessage);
 export const serverMessageSchema = schema<ServerMessage>(isServerMessage);
+const isPlayerRole = (value: unknown): value is PlayerRole =>
+  typeof value === "string" && PLAYER_ROLES.includes(value as PlayerRole);

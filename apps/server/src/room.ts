@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import {
   MAX_PLAYERS,
   PROTOCOL_VERSION,
+  type PlayerRole,
   type PlayerSnapshot,
   type PlayerSummary,
   type ServerMessage,
@@ -30,6 +31,7 @@ interface PlayerState {
   ready: boolean;
   connected: boolean;
   color: string;
+  role: PlayerRole;
   reconnectToken: string;
   disconnectedAt?: number;
   x: number;
@@ -39,12 +41,16 @@ interface PlayerState {
   left: boolean;
   right: boolean;
   jump: boolean;
+  action: boolean;
   jumpConsumed: boolean;
   lastProcessedInput: number;
   inputWindowAt: number;
   inputCount: number;
   checkpointX: number;
   finished: boolean;
+  downed: boolean;
+  downedAt?: number;
+  rescues: number;
   retry: boolean;
 }
 
@@ -105,6 +111,14 @@ export class Room {
     this.requirePlayer(playerId).ready = ready;
   }
 
+  setRole(playerId: string, role: PlayerRole): void {
+    if (this.phase !== "lobby")
+      throw new RoomError("ROOM_ALREADY_STARTED", "ゲーム開始後は役割を変更できません");
+    const player = this.requirePlayer(playerId);
+    player.role = role;
+    player.ready = false;
+  }
+
   start(playerId: string, now = Date.now()): void {
     if (playerId !== this.hostPlayerId) throw new RoomError("NOT_HOST", "作成者だけが開始できます");
     if (this.phase !== "lobby")
@@ -118,7 +132,7 @@ export class Room {
 
   applyInput(
     playerId: string,
-    input: { sequence: number; left: boolean; right: boolean; jump: boolean },
+    input: { sequence: number; left: boolean; right: boolean; jump: boolean; action?: boolean },
     now = Date.now(),
   ): void {
     const player = this.requirePlayer(playerId);
@@ -134,6 +148,7 @@ export class Room {
     player.left = input.left;
     player.right = input.right;
     player.jump = input.jump;
+    player.action = input.action ?? false;
     if (!input.jump) player.jumpConsumed = false;
   }
 
@@ -155,6 +170,7 @@ export class Room {
     player.left = false;
     player.right = false;
     player.jump = false;
+    player.action = false;
     if (this.phase === "playing" && this.players.size === 2) this.pausedAt ??= now;
   }
 
@@ -174,7 +190,8 @@ export class Room {
     if (this.players.size === 2 && [...this.players.values()].some((player) => !player.connected))
       return;
 
-    for (const player of this.players.values()) this.simulatePlayer(player, deltaSeconds);
+    for (const player of this.players.values()) this.simulatePlayer(player, now, deltaSeconds);
+    this.resolveRescues(now);
     this.updateGate(now);
     const active = [...this.players.values()].filter((player) => player.connected);
     if (active.length < 2) this.finish("aborted");
@@ -232,6 +249,7 @@ export class Room {
       ready: false,
       connected: true,
       color: PLAYER_COLORS[this.players.size] ?? "#64748B",
+      role: "supporter",
       reconnectToken,
       x: 150 + this.players.size * 70,
       y: 500,
@@ -240,12 +258,15 @@ export class Room {
       left: false,
       right: false,
       jump: false,
+      action: false,
       jumpConsumed: false,
       lastProcessedInput: 0,
       inputWindowAt: now,
       inputCount: 0,
       checkpointX: 150,
       finished: false,
+      downed: false,
+      rescues: 0,
       retry: false,
     });
     return { playerId: id, reconnectToken };
@@ -257,12 +278,18 @@ export class Room {
     return player;
   }
 
-  private simulatePlayer(player: PlayerState, deltaSeconds: number): void {
+  private simulatePlayer(player: PlayerState, now: number, deltaSeconds: number): void {
     if (!player.connected || player.finished) return;
-    player.velocityX = player.left === player.right ? 0 : player.left ? -260 : 260;
+    if (player.downed) {
+      player.velocityX = 0;
+      player.velocityY = 0;
+      return;
+    }
+    const moveSpeed = player.role === "runner" ? 310 : 260;
+    player.velocityX = player.left === player.right ? 0 : player.left ? -moveSpeed : moveSpeed;
     const grounded = player.y >= 500;
     if (player.jump && grounded && !player.jumpConsumed) {
-      player.velocityY = -470;
+      player.velocityY = player.role === "jumper" ? -560 : -470;
       player.jumpConsumed = true;
     }
     player.velocityY += 1_050 * deltaSeconds;
@@ -276,8 +303,9 @@ export class Room {
     if (!this.gateOpen && player.x > 1_520) player.x = 1_520;
     if (player.x >= 1_900) player.checkpointX = 1_900;
     if (player.y > 680) {
-      player.x = player.checkpointX;
-      player.y = 500;
+      player.downed = true;
+      player.downedAt = now;
+      player.y = 620;
       player.velocityX = 0;
       player.velocityY = 0;
     }
@@ -285,6 +313,41 @@ export class Room {
       player.finished = true;
       player.velocityX = 0;
     }
+  }
+
+  private resolveRescues(now: number): void {
+    const helpers = [...this.players.values()].filter(
+      (player) => player.connected && !player.downed && !player.finished && player.action,
+    );
+    for (const helper of helpers) {
+      const radius = helper.role === "supporter" ? 220 : 150;
+      const target = [...this.players.values()].find(
+        (player) =>
+          player !== helper &&
+          player.connected &&
+          player.downed &&
+          Math.abs(player.x - helper.x) <= radius,
+      );
+      if (target) {
+        this.revive(target);
+        helper.rescues += 1;
+      }
+      helper.action = false;
+    }
+    for (const player of this.players.values()) {
+      if (!player.downed || player.downedAt === undefined) continue;
+      const autoDelay = player.role === "supporter" ? 3_500 : 5_000;
+      if (now - player.downedAt >= autoDelay) this.revive(player);
+    }
+  }
+
+  private revive(player: PlayerState): void {
+    player.downed = false;
+    delete player.downedAt;
+    player.x = player.checkpointX;
+    player.y = 500;
+    player.velocityX = 0;
+    player.velocityY = 0;
   }
 
   private updateGate(now: number): void {
@@ -332,6 +395,9 @@ export class Room {
         velocityX: 0,
         velocityY: 0,
         finished: false,
+        downed: false,
+        downedAt: undefined,
+        action: false,
         retry: false,
         checkpointX: 150,
       });
@@ -343,6 +409,7 @@ export class Room {
     ready: player.ready,
     connected: player.connected,
     color: player.color,
+    role: player.role,
   });
   private readonly toSnapshot = (player: PlayerState): PlayerSnapshot => ({
     id: player.id,
@@ -352,5 +419,6 @@ export class Room {
     velocityY: player.velocityY,
     lastProcessedInput: player.lastProcessedInput,
     finished: player.finished,
+    downed: player.downed,
   });
 }
