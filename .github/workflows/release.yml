@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  packages: write
+  attestations: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: simosimo1333-png/games-5p-gpt-server
+
+jobs:
+  verify-and-publish:
+    name: Verify and publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install mobile browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Check release configuration
+        env:
+          CLIENT_URL: ${{ vars.PRODUCTION_CLIENT_URL }}
+          SERVER_URL: ${{ vars.PRODUCTION_SERVER_URL }}
+          WEBSOCKET_URL: ${{ vars.PRODUCTION_WEBSOCKET_URL }}
+        run: |
+          test -n "$CLIENT_URL" || (echo "PRODUCTION_CLIENT_URL is required" && exit 1)
+          test -n "$SERVER_URL" || (echo "PRODUCTION_SERVER_URL is required" && exit 1)
+          test -n "$WEBSOCKET_URL" || (echo "PRODUCTION_WEBSOCKET_URL is required" && exit 1)
+          VERSION=$(node -p "require('./package.json').version")
+          test "v$VERSION" = "$GITHUB_REF_NAME"
+
+      - name: Run release checks
+        env:
+          VITE_GAME_SERVER_URL: ${{ vars.PRODUCTION_WEBSOCKET_URL }}
+        run: npm run release:verify
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare image metadata
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,prefix=sha-
+
+      - name: Build and publish server image
+        id: push
+        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Attest server image
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag

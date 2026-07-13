@@ -34,6 +34,9 @@ class TestClient {
   close(): void {
     this.socket.close();
   }
+  waitForClose(): Promise<number> {
+    return new Promise((resolve) => this.socket.once("close", resolve));
+  }
   async waitFor<T extends ServerMessage["type"]>(
     type: T,
   ): Promise<Extract<ServerMessage, { type: T }>> {
@@ -137,6 +140,12 @@ describe("websocket game server", () => {
     const healthResponse = await fetch(`http://127.0.0.1:${server.address()}/health`);
     expect(healthResponse.headers.get("x-content-type-options")).toBe("nosniff");
     expect(metrics).toMatchObject({ activeConnections: 1, connectionsTotal: 1, activeRooms: 0 });
+    expect(metrics).toMatchObject({
+      errorsTotal: 0,
+      gamesCompletedTotal: 0,
+      gamesStartedTotal: 0,
+      messagesTotal: 0,
+    });
     expect(JSON.stringify(metrics)).not.toMatch(/token|name/i);
   });
 
@@ -153,6 +162,19 @@ describe("websocket game server", () => {
       }),
     ).rejects.toBeDefined();
     rejected.close();
+  });
+
+  it("disconnects a client that floods the server", async () => {
+    const server = new GameServer({ port: 0 });
+    servers.push(server);
+    const client = await TestClient.connect(server.address());
+    clients.push(client);
+    const closed = client.waitForClose();
+    for (let index = 0; index < 130; index += 1) {
+      client.send({ version: PROTOCOL_VERSION, type: "ping", sentAt: index });
+    }
+    await expect(closed).resolves.toBe(1008);
+    expect(server.metrics.errorsTotal).toBe(1);
   });
 
   it("restores the same player through a websocket reconnection", async () => {

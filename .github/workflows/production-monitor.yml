@@ -1,0 +1,30 @@
+name: Production monitor
+
+on:
+  schedule:
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    name: Health and gameplay metrics
+    if: ${{ vars.PRODUCTION_SERVER_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check production server
+        env:
+          PRODUCTION_SERVER_URL: ${{ vars.PRODUCTION_SERVER_URL }}
+        run: npm run check:production

@@ -61,3 +61,25 @@ jobs:
 
       - name: Run mobile smoke test
         run: npm run test:e2e
+
+  server-image:
+    name: Server container
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build production server image
+        run: docker build --file apps/server/Dockerfile --tag houkago-server:test .
+
+      - name: Verify container health
+        run: |
+          docker run --detach --name houkago-server --publish 8787:8787 --env ALLOWED_ORIGINS=https://game.example houkago-server:test
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8787/health; then exit 0; fi
+            sleep 1
+          done
+          docker logs houkago-server
+          exit 1
