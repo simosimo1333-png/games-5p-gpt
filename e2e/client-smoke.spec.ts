@@ -35,3 +35,37 @@ test("canvas stays inside the latest iPhone viewport", async ({ page }) => {
     expect(canvas.y + canvas.height).toBeLessThanOrEqual(viewport.height);
   }
 });
+
+test("two devices can create, join, and start the same room", async ({ page, browser }) => {
+  test.setTimeout(90_000);
+  const guestContext = await browser.newContext({
+    viewport: { width: 956, height: 440 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const guest = await guestContext.newPage();
+  await page.setViewportSize({ width: 874, height: 402 });
+  await page.goto("/");
+  await guest.goto("/");
+
+  await page.locator("#player-name").fill("Host");
+  await page.locator("#create-room").click();
+  await expect(page.locator("#current-room")).not.toHaveText("");
+  const roomCode = await page.locator("#current-room").textContent();
+  expect(roomCode).toMatch(/^[A-Z0-9]{5}$/);
+
+  await guest.locator("#player-name").fill("Guest");
+  await guest.locator("#room-code").fill(roomCode ?? "");
+  await guest.locator("#join-room").click();
+  await expect(page.locator("#player-list li")).toHaveCount(2);
+  await expect(guest.locator("#player-list li")).toHaveCount(2);
+
+  await page.locator("#ready-button").click();
+  await guest.locator("#ready-button").click();
+  await expect(page.locator("#player-list li").filter({ hasText: "準備OK" })).toHaveCount(2);
+  await page.locator("#start-button").click();
+  await expect(page.locator("#lobby-panel")).toBeHidden({ timeout: 6_000 });
+  await expect(guest.locator("#lobby-panel")).toBeHidden({ timeout: 6_000 });
+
+  await guestContext.close();
+});

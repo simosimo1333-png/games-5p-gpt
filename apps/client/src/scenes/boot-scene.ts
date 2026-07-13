@@ -13,6 +13,6 @@ export class BootScene extends Phaser.Scene {
     this.registry.set("protocolVersion", PROTOCOL_VERSION);
     const errors = validateStage(SCHOOL_GATE_STAGE);
     if (errors.length > 0) throw new Error(errors.join("; "));
-    this.scene.start("game");
+    this.scene.start("lobby");
   }
 }

@@ -61,4 +61,46 @@ describe("protocol runtime validation", () => {
     const result = parseServerMessage({ version: PROTOCOL_VERSION, type: "unknown" });
     expect(result).toMatchObject({ success: false, error: { code: "INVALID_MESSAGE" } });
   });
+
+  it("accepts room creation and established session messages", () => {
+    expect(
+      parseClientMessage({
+        version: PROTOCOL_VERSION,
+        type: "create_room",
+        player: { id: "p1", name: "Player" },
+      }).success,
+    ).toBe(true);
+    expect(
+      parseServerMessage({
+        version: PROTOCOL_VERSION,
+        type: "session_established",
+        roomCode: "ABCDE",
+        playerId: "p1",
+        reconnectToken: "1234567890123456",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts a complete authoritative snapshot", () => {
+    const result = parseServerMessage({
+      version: PROTOCOL_VERSION,
+      type: "snapshot",
+      tick: 1,
+      serverTime: 100,
+      remainingMs: 180_000,
+      gateOpen: false,
+      players: [
+        {
+          id: "p1",
+          x: 150,
+          y: 500,
+          velocityX: 0,
+          velocityY: 0,
+          lastProcessedInput: 0,
+          finished: false,
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
 });
