@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type Server as HttpServer } from "node:http";
 
 import WebSocket, { WebSocketServer } from "ws";
@@ -25,6 +25,7 @@ interface ClientSession {
 const messageLimitPerSecond = 120;
 
 export interface GameServerOptions {
+  accessKey?: string | undefined;
   allowedOrigins?: readonly string[];
   logger?: Logger;
   port?: number;
@@ -59,8 +60,19 @@ export class GameServer {
       response.writeHead(404).end();
     });
     const allowedOrigins = new Set(options.allowedOrigins ?? []);
-    const verifyClient: WebSocket.VerifyClientCallbackSync = ({ origin }) =>
-      allowedOrigins.size === 0 || allowedOrigins.has(origin);
+    const accessKey = options.accessKey?.trim() ?? "";
+    const verifyClient: WebSocket.VerifyClientCallbackSync = ({ origin, req }) => {
+      if (allowedOrigins.size > 0 && !allowedOrigins.has(origin)) return false;
+      if (!accessKey) return true;
+      const supplied = new URL(req.url ?? "/", "http://localhost").searchParams.get("access_key");
+      if (!supplied) return false;
+      const expectedBuffer = Buffer.from(accessKey);
+      const suppliedBuffer = Buffer.from(supplied);
+      return (
+        expectedBuffer.length === suppliedBuffer.length &&
+        timingSafeEqual(expectedBuffer, suppliedBuffer)
+      );
+    };
     this.wss = new WebSocketServer({
       server: this.httpServer,
       verifyClient,

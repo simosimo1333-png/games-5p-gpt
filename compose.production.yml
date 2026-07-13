@@ -9,6 +9,7 @@ services:
     environment:
       PORT: 8787
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?ALLOWED_ORIGINSを設定してください}
+      FRIEND_ACCESS_KEY: ${FRIEND_ACCESS_KEY:?FRIEND_ACCESS_KEYを設定してください}
     ports:
       - "${SERVER_PORT:-8787}:8787"
     read_only: true

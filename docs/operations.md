@@ -4,8 +4,9 @@
 
 - `PORT`: 公開サービスから割り当てられた待受ポート
 - `ALLOWED_ORIGINS`: 接続を許可するクライアントURLをカンマ区切りで指定する（例: `https://games-5p-gpt.pages.dev`）
+- `FRIEND_ACCESS_KEY`: 6人だけが知っている、12文字以上を目安にした友人用キー
 
-本番では `ALLOWED_ORIGINS` を空にしないでください。許可リスト外のWebサイトからのWebSocket接続は拒否します。
+本番では `ALLOWED_ORIGINS` と `FRIEND_ACCESS_KEY` を空にしないでください。許可リスト外のWebサイトと、正しい友人用キーを持たない人からのWebSocket接続は拒否します。
 
 ## ヘルスチェック
 

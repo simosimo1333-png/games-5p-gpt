@@ -20,6 +20,7 @@ interface SavedSession {
 }
 
 const sessionKey = "houkago-dash-session";
+const accessKeyStorageKey = "houkago-dash-friend-key";
 
 function defaultServerUrl(): string {
   const selected = new URLSearchParams(globalThis.location?.search ?? "").get("server");
@@ -40,9 +41,13 @@ export class NetworkClient {
   private state: ConnectionState = "disconnected";
   private latestRoom: Extract<ServerMessage, { type: "room_state" }> | undefined;
   private url = defaultServerUrl();
+  private accessKey = "";
 
   constructor() {
     this.saved = this.loadSession();
+    const invitedKey = new URLSearchParams(globalThis.location?.search ?? "").get("friend");
+    this.accessKey = invitedKey?.trim() || localStorage.getItem(accessKeyStorageKey) || "";
+    if (this.accessKey) localStorage.setItem(accessKeyStorageKey, this.accessKey);
     globalThis.document?.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible" && this.state === "disconnected" && this.saved)
         void this.connect(true);
@@ -57,6 +62,15 @@ export class NetworkClient {
   }
   get session(): SavedSession | undefined {
     return this.saved;
+  }
+  get friendAccessKey(): string {
+    return this.accessKey;
+  }
+
+  setFriendAccessKey(value: string): void {
+    this.accessKey = value.trim();
+    if (this.accessKey) localStorage.setItem(accessKeyStorageKey, this.accessKey);
+    else localStorage.removeItem(accessKeyStorageKey);
   }
 
   onMessage(listener: MessageListener): () => void {
@@ -73,7 +87,9 @@ export class NetworkClient {
     if (this.socket?.readyState === WebSocket.OPEN) return;
     this.setState(reconnecting ? "reconnecting" : "connecting");
     await new Promise<void>((resolve, reject) => {
-      const socket = new WebSocket(this.url);
+      const url = new URL(this.url);
+      if (this.accessKey) url.searchParams.set("access_key", this.accessKey);
+      const socket = new WebSocket(url);
       this.socket = socket;
       socket.addEventListener(
         "open",
@@ -105,14 +121,14 @@ export class NetworkClient {
   }
 
   async createRoom(name: string): Promise<void> {
-    await this.connect();
+    await this.connectWithWakeUp();
     const playerId = crypto.randomUUID();
     this.saved = { playerId, name, roomCode: "", reconnectToken: "" };
     this.send({ version: PROTOCOL_VERSION, type: "create_room", player: { id: playerId, name } });
   }
 
   async joinRoom(roomCode: string, name: string): Promise<void> {
-    await this.connect();
+    await this.connectWithWakeUp();
     const playerId = crypto.randomUUID();
     this.saved = { playerId, name, roomCode: roomCode.toUpperCase(), reconnectToken: "" };
     this.send({
@@ -144,6 +160,22 @@ export class NetworkClient {
   leave(): void {
     this.send({ version: PROTOCOL_VERSION, type: "leave_room" });
     this.clearSession();
+  }
+
+  private async connectWithWakeUp(): Promise<void> {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      try {
+        await this.connect();
+        return;
+      } catch {
+        this.socket?.close();
+        this.socket = undefined;
+        this.setState("disconnected");
+        if (attempt === 7)
+          throw new Error("無料サーバーを起動できませんでした。少し待って、もう一度お試しください");
+        await new Promise((resolve) => setTimeout(resolve, 10_000));
+      }
+    }
   }
 
   private send(message: ClientMessage): void {
