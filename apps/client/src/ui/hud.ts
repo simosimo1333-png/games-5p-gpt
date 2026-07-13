@@ -2,6 +2,7 @@ import type Phaser from "phaser";
 
 export class Hud {
   private readonly connection: Phaser.GameObjects.Text;
+  private readonly objective: Phaser.GameObjects.Text;
   private readonly players: Phaser.GameObjects.Text;
   private readonly timer: Phaser.GameObjects.Text;
 
@@ -17,7 +18,7 @@ export class Hud {
       })
       .setScrollFactor(0);
     this.timer = scene.add
-      .text(1050, 40, "0.0秒", {
+      .text(1050, 40, "残り --", {
         fontFamily: "monospace",
         fontSize: "30px",
         color: "#fff",
@@ -46,7 +47,7 @@ export class Hud {
       })
       .setScrollFactor(0)
       .setDepth(20);
-    scene.add
+    this.objective = scene.add
       .text(640, 670, "床スイッチは仲間と同時に！　倒れた仲間の近くで HELP / E", {
         fontFamily: "system-ui",
         fontSize: "20px",
@@ -60,12 +61,13 @@ export class Hud {
       .setDepth(20);
   }
 
-  update(elapsedSeconds: number): void {
-    this.timer.setText(`${elapsedSeconds.toFixed(1)}秒`);
-  }
-
   setRemaining(remainingMs: number): void {
-    this.timer.setText(`残り ${(remainingMs / 1000).toFixed(1)}秒`);
+    this.timer
+      .setText(`残り ${(remainingMs / 1000).toFixed(1)}秒`)
+      .setColor(remainingMs <= 30_000 ? "#fecaca" : "#fff");
+  }
+  setObjective(text: string, urgent = false): void {
+    this.objective.setText(text).setColor(urgent ? "#fde68a" : "#fff");
   }
   setPlayers(connected: number, total: number): void {
     this.players.setText(`参加者 ${connected}/${total}`);

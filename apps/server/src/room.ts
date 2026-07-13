@@ -63,6 +63,7 @@ export interface JoinResult {
 
 export class Room {
   readonly players = new Map<string, PlayerState>();
+  hostPlayerId: string;
   phase: RoomPhase = "lobby";
   gateOpen = false;
   stageId: StageId = "school-gate";
@@ -76,10 +77,11 @@ export class Room {
 
   constructor(
     readonly code: string,
-    readonly hostPlayerId: string,
+    hostPlayerId: string,
     hostName: string,
     now = Date.now(),
   ) {
+    this.hostPlayerId = hostPlayerId;
     this.addNewPlayer(hostPlayerId, hostName, now);
   }
 
@@ -190,6 +192,7 @@ export class Room {
 
   remove(playerId: string): void {
     this.players.delete(playerId);
+    if (playerId === this.hostPlayerId) this.reassignHost();
   }
 
   tick(now = Date.now(), deltaSeconds = 0.05): void {
@@ -386,14 +389,25 @@ export class Room {
   }
 
   private pruneDisconnected(now: number): void {
+    let hostWasRemoved = false;
     for (const player of this.players.values()) {
       if (
         !player.connected &&
         player.disconnectedAt !== undefined &&
         now - player.disconnectedAt > RECONNECT_GRACE_MS
-      )
+      ) {
         this.players.delete(player.id);
+        hostWasRemoved ||= player.id === this.hostPlayerId;
+      }
     }
+    if (hostWasRemoved) this.reassignHost();
+  }
+
+  private reassignHost(): void {
+    const nextHost =
+      [...this.players.values()].find((player) => player.connected) ??
+      this.players.values().next().value;
+    if (nextHost) this.hostPlayerId = nextHost.id;
   }
 
   private finish(result: "aborted" | "cleared" | "timeout"): void {

@@ -33,7 +33,6 @@ export class GameScene extends Phaser.Scene {
   private readonly snapshots = new SnapshotInterpolator();
   private inputSequence = 0;
   private lastInputSentAt = 0;
-  private startedAt = 0;
   private stage!: StageData;
   private gateWasOpen = false;
   private reducedMotion = false;
@@ -95,7 +94,6 @@ export class GameScene extends Phaser.Scene {
     this.hud = new Hud(this);
     this.cameras.main.startFollow(this.player.sprite, true, 0.08, 0.08, -240, 80);
     this.cameras.main.setBounds(0, 0, this.stage.world.width, this.stage.world.height);
-    this.startedAt = performance.now();
     if (networkClient.roomState) this.applyRoomState(networkClient.roomState);
     this.cleanup.push(
       networkClient.onMessage((message) => {
@@ -151,16 +149,20 @@ export class GameScene extends Phaser.Scene {
       }
       const screenX = remote.targetX - this.cameras.main.scrollX;
       const outside = screenX < 0 || screenX > GAME_WIDTH;
+      const needsHelp = this.downedPlayers.has(id);
       remote.indicator
         .setVisible(outside)
-        .setText(screenX < 0 ? "◀ 仲間" : "仲間 ▶")
+        .setText(
+          screenX < 0
+            ? `◀ ${needsHelp ? "助けて！" : "仲間"}`
+            : `${needsHelp ? "助けて！" : "仲間"} ▶`,
+        )
         .setPosition(
           screenX < 0 ? 20 : GAME_WIDTH - 20,
           Math.max(140, Math.min(620, remote.targetY)),
         )
         .setOrigin(screenX < 0 ? 0 : 1, 0.5);
     }
-    this.hud.update((performance.now() - this.startedAt) / 1000);
   }
 
   private applySnapshot(message: Extract<ServerMessage, { type: "snapshot" }>): void {
@@ -214,6 +216,15 @@ export class GameScene extends Phaser.Scene {
       remote.targetY = state.y;
       remote.sprite.setAlpha(state.downed ? 0.45 : 1);
     }
+    const localDowned = message.players.some((player) => player.id === localId && player.downed);
+    const friendsDowned = message.players.filter(
+      (player) => player.id !== localId && player.downed,
+    ).length;
+    if (localDowned) this.hud.setObjective("倒れました—仲間の救助を待とう", true);
+    else if (friendsDowned > 0)
+      this.hud.setObjective(`倒れた仲間が${friendsDowned}人—近くで HELP / E`, true);
+    else if (message.gateOpen) this.hud.setObjective("門が開いた！ 全員でゴールへ");
+    else this.hud.setObjective("床スイッチは仲間と同時に！");
   }
 
   private applyRoomState(message: Extract<ServerMessage, { type: "room_state" }>): void {
