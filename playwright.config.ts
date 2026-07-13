@@ -45,7 +45,8 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: "node ../../node_modules/vite/bin/vite.js preview --host 127.0.0.1",
+      command:
+        "node ../../node_modules/vite/bin/vite.js preview --configLoader runner --host 127.0.0.1",
       cwd: "apps/client",
       port: 4173,
       reuseExistingServer: !process.env.CI,

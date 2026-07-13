@@ -2,6 +2,7 @@ import Phaser from "phaser";
 
 import { GAME_HEIGHT, GAME_WIDTH } from "../config/game";
 import { networkClient } from "../network/network-client";
+import { soundManager } from "../audio/sound-manager";
 
 interface ResultData {
   readonly elapsedSeconds?: number;
@@ -50,6 +51,7 @@ export class ResultScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive();
     retry.on("pointerdown", () => {
+      soundManager.play("click");
       retry.setText("仲間の投票を待っています…");
       networkClient.voteRetry(true);
     });
@@ -61,7 +63,7 @@ export class ResultScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     const dispose = networkClient.onMessage((message) => {
-      if (message.type === "game_started") this.scene.start("game");
+      if (message.type === "game_started") this.scene.start("game", { stageId: message.stageId });
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, dispose);
   }

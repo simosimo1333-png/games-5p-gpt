@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { SCHOOL_GATE_STAGE } from "./school-gate";
+import { STAGES } from ".";
 import type { StageData } from "./types";
 import { validateStage } from "./validate";
 
 describe("stage validation", () => {
   it("accepts the school gate stage", () => {
-    expect(validateStage(SCHOOL_GATE_STAGE)).toEqual([]);
+    for (const stage of Object.values(STAGES)) expect(validateStage(stage)).toEqual([]);
   });
 
   it("rejects duplicate platform ids", () => {

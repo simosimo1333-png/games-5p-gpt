@@ -101,6 +101,8 @@ npm run check
 | [ディレクトリ構成](docs/directory-structure.md) | 移行後の構成と責務 |
 | [Issueバックログ](docs/issue-backlog.md) | 今後の開発タスク、依存関係、完了条件 |
 | [ソースと成果物の管理方針](docs/artifact-policy.md) | 正式なソース、ZIP、将来の配布物の扱い |
+| [プライバシーポリシー](docs/privacy-policy.md) | ゲームが扱う情報、目的、保存方針 |
+| [利用規約](docs/terms-of-use.md) | 利用条件、禁止事項、開発版の注意 |
 
 ## コントリビューション
 

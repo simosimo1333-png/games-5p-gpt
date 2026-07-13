@@ -1,13 +1,16 @@
 import Phaser from "phaser";
-import type { ServerMessage } from "../../../../packages/protocol/src";
+import type { ServerMessage, StageId } from "../../../../packages/protocol/src";
 
 import { GAME_WIDTH } from "../config/game";
 import { PlayerController } from "../entities/player-controller";
 import { InputController } from "../input/input-controller";
 import { networkClient } from "../network/network-client";
+import { soundManager } from "../audio/sound-manager";
 import { SnapshotInterpolator } from "../network/snapshot-interpolator";
-import { SCHOOL_GATE_STAGE } from "../stages/school-gate";
+import { STAGES } from "../stages";
+import type { StageData } from "../stages/types";
 import { Hud } from "../ui/hud";
+import { loadPreferences } from "../ui/preferences";
 
 export class GameScene extends Phaser.Scene {
   private cleanup: Array<() => void> = [];
@@ -31,65 +34,67 @@ export class GameScene extends Phaser.Scene {
   private inputSequence = 0;
   private lastInputSentAt = 0;
   private startedAt = 0;
+  private stage!: StageData;
+  private gateWasOpen = false;
+  private reducedMotion = false;
+  private readonly downedPlayers = new Set<string>();
 
   constructor() {
     super("game");
   }
 
-  create(): void {
+  create(data: { stageId?: StageId }): void {
+    const selected = data.stageId ?? networkClient.roomState?.room.stageId ?? "school-gate";
+    this.stage = STAGES[selected];
+    this.reducedMotion = loadPreferences().reducedMotion;
+    this.gateWasOpen = false;
+    this.downedPlayers.clear();
+    soundManager.play("start");
     this.finished = false;
     this.physics.resume();
-    this.physics.world.setBounds(
-      0,
-      0,
-      SCHOOL_GATE_STAGE.world.width,
-      SCHOOL_GATE_STAGE.world.height,
+    this.physics.world.setBounds(0, 0, this.stage.world.width, this.stage.world.height);
+    this.cameras.main.setBackgroundColor(
+      this.stage.id === "rooftop-relay"
+        ? "#7dd3fc"
+        : this.stage.id === "gym-escape"
+          ? "#fde68a"
+          : "#a7d8ff",
     );
-    this.cameras.main.setBackgroundColor("#a7d8ff");
 
     this.add
-      .rectangle(
-        SCHOOL_GATE_STAGE.world.width / 2,
-        650,
-        SCHOOL_GATE_STAGE.world.width,
-        140,
-        0x84a85c,
-      )
+      .rectangle(this.stage.world.width / 2, 650, this.stage.world.width, 140, 0x84a85c)
       .setDepth(-3);
     this.add
-      .rectangle(
-        SCHOOL_GATE_STAGE.world.width / 2,
-        590,
-        SCHOOL_GATE_STAGE.world.width,
-        20,
-        0xb8c48c,
-      )
+      .rectangle(this.stage.world.width / 2, 590, this.stage.world.width, 20, 0xb8c48c)
       .setDepth(-2);
 
     const platforms = this.physics.add.staticGroup();
-    for (const data of SCHOOL_GATE_STAGE.platforms) {
-      const platform = this.add.rectangle(data.x, data.y, data.width, data.height, data.color);
+    for (const platformData of this.stage.platforms) {
+      const platform = this.add.rectangle(
+        platformData.x,
+        platformData.y,
+        platformData.width,
+        platformData.height,
+        platformData.color,
+      );
       this.physics.add.existing(platform, true);
       platforms.add(platform);
     }
 
-    this.player = new PlayerController(this, SCHOOL_GATE_STAGE.playerSpawn);
+    this.player = new PlayerController(this, this.stage.playerSpawn);
     this.physics.add.collider(this.player.sprite, platforms);
 
-    this.gate = this.add.rectangle(1_540, 430, 36, 300, 0x334155).setDepth(5);
-    this.switches = [1_250, 1_430].map((x) =>
+    const gate = this.stage.mechanics.gate;
+    this.gate = this.add.rectangle(gate.x, gate.y, gate.width, gate.height, 0x334155).setDepth(5);
+    this.switches = this.stage.mechanics.switches.map((x) =>
       this.add.rectangle(x, 570, 110, 20, 0xf59e0b).setDepth(6),
     );
-    this.add.rectangle(2_270, 640, 180, 160, 0x0f172a).setDepth(-1);
+    const pit = this.stage.mechanics.pit;
+    this.add.rectangle(pit.x, pit.y, pit.width, pit.height, 0x0f172a).setDepth(-1);
     this.inputController = new InputController(this);
     this.hud = new Hud(this);
     this.cameras.main.startFollow(this.player.sprite, true, 0.08, 0.08, -240, 80);
-    this.cameras.main.setBounds(
-      0,
-      0,
-      SCHOOL_GATE_STAGE.world.width,
-      SCHOOL_GATE_STAGE.world.height,
-    );
+    this.cameras.main.setBounds(0, 0, this.stage.world.width, this.stage.world.height);
     this.startedAt = performance.now();
     if (networkClient.roomState) this.applyRoomState(networkClient.roomState);
     this.cleanup.push(
@@ -134,8 +139,9 @@ export class GameScene extends Phaser.Scene {
       this.lastInputSentAt = performance.now();
     }
     for (const remote of this.remotePlayers.values()) {
-      remote.sprite.x = Phaser.Math.Linear(remote.sprite.x, remote.targetX, 0.22);
-      remote.sprite.y = Phaser.Math.Linear(remote.sprite.y, remote.targetY, 0.22);
+      const smoothing = this.reducedMotion ? 1 : 0.22;
+      remote.sprite.x = Phaser.Math.Linear(remote.sprite.x, remote.targetX, smoothing);
+      remote.sprite.y = Phaser.Math.Linear(remote.sprite.y, remote.targetY, smoothing);
     }
     for (const [id, remote] of this.remotePlayers) {
       const sample = this.snapshots.sample(id, Date.now() - 100);
@@ -161,10 +167,14 @@ export class GameScene extends Phaser.Scene {
     this.snapshots.push(message);
     this.hud.setRemaining(message.remainingMs);
     this.gate.setVisible(!message.gateOpen);
+    if (message.gateOpen && !this.gateWasOpen) soundManager.play("gate");
+    this.gateWasOpen = message.gateOpen;
     for (const floorSwitch of this.switches)
       floorSwitch.setFillStyle(message.gateOpen ? 0x22c55e : 0xf59e0b);
     const localId = networkClient.session?.playerId;
     for (const state of message.players) {
+      if (state.downed) this.downedPlayers.add(state.id);
+      else if (this.downedPlayers.delete(state.id)) soundManager.play("rescue");
       if (state.id === localId) {
         this.player.sprite.setAlpha(state.downed ? 0.45 : 1);
         const distance = Phaser.Math.Distance.Between(
@@ -176,8 +186,8 @@ export class GameScene extends Phaser.Scene {
         if (distance > 160) this.player.sprite.setPosition(state.x, state.y);
         else
           this.player.sprite.setPosition(
-            Phaser.Math.Linear(this.player.sprite.x, state.x, 0.35),
-            Phaser.Math.Linear(this.player.sprite.y, state.y, 0.35),
+            Phaser.Math.Linear(this.player.sprite.x, state.x, this.reducedMotion ? 1 : 0.35),
+            Phaser.Math.Linear(this.player.sprite.y, state.y, this.reducedMotion ? 1 : 0.35),
           );
         continue;
       }
@@ -223,6 +233,7 @@ export class GameScene extends Phaser.Scene {
   private finish(result: "aborted" | "cleared" | "timeout", elapsedMs: number): void {
     if (this.finished) return;
     this.finished = true;
+    if (result === "cleared") soundManager.play("finish");
     this.inputController.reset();
     this.physics.pause();
     this.scene.start("result", { elapsedSeconds: elapsedMs / 1000, result });

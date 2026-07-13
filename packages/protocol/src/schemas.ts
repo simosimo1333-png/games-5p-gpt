@@ -1,8 +1,12 @@
-export const PROTOCOL_VERSION = 2 as const;
+export const PROTOCOL_VERSION = 3 as const;
 export const MAX_PLAYERS = 6 as const;
 
 export const PLAYER_ROLES = ["runner", "jumper", "supporter"] as const;
 export type PlayerRole = (typeof PLAYER_ROLES)[number];
+export const STAGE_IDS = ["school-gate", "rooftop-relay", "gym-escape"] as const;
+export type StageId = (typeof STAGE_IDS)[number];
+export const DIFFICULTY_LEVELS = ["casual", "standard", "challenge"] as const;
+export type Difficulty = (typeof DIFFICULTY_LEVELS)[number];
 
 interface Envelope {
   version: typeof PROTOCOL_VERSION;
@@ -39,6 +43,7 @@ export type ClientMessage =
     })
   | (Envelope & { type: "set_ready"; ready: boolean })
   | (Envelope & { type: "set_role"; role: PlayerRole })
+  | (Envelope & { type: "set_game_options"; stageId: StageId; difficulty: Difficulty })
   | (Envelope & { type: "start_game" })
   | (Envelope & { type: "leave_room" })
   | (Envelope & {
@@ -79,10 +84,12 @@ export type ServerMessage =
         code: string;
         phase: "lobby" | "countdown" | "playing" | "finished";
         hostPlayerId: string;
+        stageId: StageId;
+        difficulty: Difficulty;
         players: PlayerSummary[];
       };
     })
-  | (Envelope & { type: "game_started"; stageId: string; startedAt: number })
+  | (Envelope & { type: "game_started"; stageId: StageId; startedAt: number })
   | (Envelope & {
       type: "snapshot";
       tick: number;
@@ -183,6 +190,8 @@ function isClientMessage(input: unknown): input is ClientMessage {
       return typeof input.ready === "boolean";
     case "set_role":
       return isPlayerRole(input.role);
+    case "set_game_options":
+      return isStageId(input.stageId) && isDifficulty(input.difficulty);
     case "start_game":
     case "leave_room":
       return true;
@@ -219,13 +228,15 @@ function isServerMessage(input: unknown): input is ServerMessage {
         isRoomCode(input.room.code) &&
         ["lobby", "countdown", "playing", "finished"].includes(String(input.room.phase)) &&
         isString(input.room.hostPlayerId) &&
+        isStageId(input.room.stageId) &&
+        isDifficulty(input.room.difficulty) &&
         Array.isArray(input.room.players) &&
         input.room.players.length >= 1 &&
         input.room.players.length <= MAX_PLAYERS &&
         input.room.players.every(isPlayerSummary)
       );
     case "game_started":
-      return isString(input.stageId) && isInteger(input.startedAt);
+      return isStageId(input.stageId) && isInteger(input.startedAt);
     case "snapshot":
       return (
         isInteger(input.tick) &&
@@ -260,3 +271,7 @@ export const clientMessageSchema = schema<ClientMessage>(isClientMessage);
 export const serverMessageSchema = schema<ServerMessage>(isServerMessage);
 const isPlayerRole = (value: unknown): value is PlayerRole =>
   typeof value === "string" && PLAYER_ROLES.includes(value as PlayerRole);
+const isStageId = (value: unknown): value is StageId =>
+  typeof value === "string" && STAGE_IDS.includes(value as StageId);
+const isDifficulty = (value: unknown): value is Difficulty =>
+  typeof value === "string" && DIFFICULTY_LEVELS.includes(value as Difficulty);

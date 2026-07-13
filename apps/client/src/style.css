@@ -87,6 +87,69 @@ canvas {
   border: 2px solid #cbd5e1;
   border-radius: 12px;
 }
+#game-options {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  border: 2px solid #cbd5e1;
+  border-radius: 12px;
+}
+#game-options label {
+  flex: 1 1 220px;
+}
+#game-options select {
+  min-height: 44px;
+  border: 2px solid #94a3b8;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font: inherit;
+}
+#preferences {
+  display: flex;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  border: 0;
+  padding: 0;
+}
+#preferences label {
+  display: flex;
+  grid-template-columns: none;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+#preferences input {
+  min-height: auto;
+}
+.legal-links {
+  display: flex;
+  gap: 16px;
+  margin-top: 14px;
+  font-size: 14px;
+}
+.legal-links a {
+  color: #1d4ed8;
+}
+.high-contrast .lobby-panel {
+  border: 4px solid #000;
+  background: #fff;
+}
+.high-contrast .lobby-panel button {
+  border-color: #000;
+  background: #000;
+}
+.large-text .lobby-panel {
+  font-size: 118%;
+}
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  scroll-behavior: auto !important;
+  transition-duration: 0.001ms !important;
+  animation-duration: 0.001ms !important;
+}
 #role-select label {
   display: grid;
   grid-template-columns: auto 1fr;

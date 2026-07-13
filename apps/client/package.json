@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 0.0.0.0",
+    "dev": "vite --configLoader runner --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build --configLoader runner && node ../../scripts/check-client-bundle.mjs dist",
+    "preview": "vite preview --configLoader runner --host 0.0.0.0",
     "typecheck": "tsc --noEmit --pretty false"
   },
   "dependencies": {

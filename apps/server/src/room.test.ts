@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { Room, RoomError } from "./room";
+import { STAGE_RULES } from "./stage-rules";
 
 describe("authoritative room", () => {
   it("rejects a seventh player", () => {
@@ -114,6 +115,29 @@ describe("authoritative room", () => {
     expect(() => room.setRole("p1", "supporter")).toThrowError(
       expect.objectContaining({ code: "ROOM_ALREADY_STARTED" }),
     );
+  });
+
+  it("lets only the host select each stage and difficulty", () => {
+    for (const stageId of Object.keys(STAGE_RULES) as Array<keyof typeof STAGE_RULES>) {
+      const room = new Room("ABCDE", "p1", "Host", 0);
+      room.join("p2", "Guest", 0);
+      expect(() => room.setGameOptions("p2", stageId, "casual")).toThrowError(
+        expect.objectContaining({ code: "NOT_HOST" }),
+      );
+      room.setReady("p1", true);
+      room.setReady("p2", true);
+      room.setGameOptions("p1", stageId, "casual");
+      expect(room.roomState().room).toMatchObject({ stageId, difficulty: "casual" });
+      expect(room.roomState().room.players.every((player) => !player.ready)).toBe(true);
+      room.setReady("p1", true);
+      room.setReady("p2", true);
+      room.start("p1", 0);
+      room.tick(3_000);
+      room.gateOpen = true;
+      for (const player of room.players.values()) player.x = STAGE_RULES[stageId].finishX;
+      room.tick(3_050);
+      expect(room.finishedMessage(3_050)).toMatchObject({ result: "cleared" });
+    }
   });
 
   it("lets a nearby teammate rescue a downed player and has an automatic fallback", () => {

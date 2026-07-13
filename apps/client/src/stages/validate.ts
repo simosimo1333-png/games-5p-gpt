@@ -32,6 +32,12 @@ export function validateStage(stage: StageData): readonly string[] {
   if (!isPointInsideWorld(stage.playerSpawn, stage))
     errors.push("player spawn must be inside the world");
   if (!isRectangleInsideWorld(stage.finish, stage)) errors.push("finish must be inside the world");
+  if (!isRectangleInsideWorld(stage.mechanics.gate, stage))
+    errors.push("gate must be inside the world");
+  if (!isRectangleInsideWorld(stage.mechanics.pit, stage))
+    errors.push("pit must be inside the world");
+  if (stage.mechanics.switches.some((x) => x < 0 || x > stage.world.width))
+    errors.push("switches must be inside the world");
 
   const ids = new Set<string>();
   for (const platform of stage.platforms) {
