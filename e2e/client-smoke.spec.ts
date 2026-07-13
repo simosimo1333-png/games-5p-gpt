@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 test("新しいクライアントがモバイル画面で起動する", async ({ page }) => {
-  await page.goto("/");
+  await page.setViewportSize({ width: 874, height: 402 });
+  await page.goto("/?friend=six-friends-only");
+  await expect(page.locator("#friend-key")).toHaveValue("six-friends-only");
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("houkago-dash-friend-key")))
+    .toBe("six-friends-only");
 
   await expect(page).toHaveTitle("放課後ダッシュ！");
   await expect(page.locator("canvas")).toBeVisible();

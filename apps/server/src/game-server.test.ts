@@ -19,8 +19,10 @@ class TestClient {
     );
   }
 
-  static async connect(port: number): Promise<TestClient> {
-    const socket = new WebSocket(`ws://127.0.0.1:${port}`);
+  static async connect(port: number, accessKey?: string): Promise<TestClient> {
+    const url = new URL(`ws://127.0.0.1:${port}`);
+    if (accessKey) url.searchParams.set("access_key", accessKey);
+    const socket = new WebSocket(url);
     await new Promise<void>((resolve, reject) => {
       socket.once("open", resolve);
       socket.once("error", reject);
@@ -162,6 +164,23 @@ describe("websocket game server", () => {
       }),
     ).rejects.toBeDefined();
     rejected.close();
+  });
+
+  it("allows only friends with the configured access key", async () => {
+    const server = new GameServer({ port: 0, accessKey: "six-friends-only" });
+    servers.push(server);
+    const rejected = new WebSocket(`ws://127.0.0.1:${server.address()}`);
+    await expect(
+      new Promise<void>((resolve, reject) => {
+        rejected.once("open", resolve);
+        rejected.once("error", reject);
+      }),
+    ).rejects.toBeDefined();
+    rejected.close();
+
+    const accepted = await TestClient.connect(server.address(), "six-friends-only");
+    clients.push(accepted);
+    expect(server.metrics.activeConnections).toBe(1);
   });
 
   it("disconnects a client that floods the server", async () => {

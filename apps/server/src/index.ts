@@ -5,7 +5,8 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
-const server = new GameServer({ port, allowedOrigins });
+const accessKey = process.env.FRIEND_ACCESS_KEY?.trim();
+const server = new GameServer({ port, allowedOrigins, accessKey });
 console.info(JSON.stringify({ event: "server.started", port: server.address() }));
 
 const shutdown = (): void => {

@@ -56,7 +56,7 @@ export class LobbyScene extends Phaser.Scene {
     const panel = document.createElement("div");
     panel.id = "lobby-panel";
     panel.className = "lobby-panel";
-    panel.innerHTML = `<details class="how-to-play" open><summary>遊び方</summary><ol><li>名前を入れ、ルームを作るか合言葉で参加</li><li>役割を選び、全員が「準備OK」</li><li>左右移動とジャンプで進み、2つの床スイッチを仲間と同時に押す</li><li>落ちた仲間の近くで「助ける」を押し、全員でゴールへ到着</li></ol></details><label>表示名<input id="player-name" maxlength="24" autocomplete="nickname" value="${this.escape(networkClient.session?.name ?? "")}" /></label><div class="lobby-actions"><button id="create-room" type="button">ルームを作る</button><span>または</span><input id="room-code" maxlength="6" placeholder="合言葉" autocomplete="off" value="${this.escape(invitedRoom)}" /><button id="join-room" type="button">参加する</button></div><fieldset id="preferences"><legend>遊びやすさ設定</legend><label><input id="sound-setting" type="checkbox" ${this.checked(this.preferences.sound)} />効果音</label><label><input id="motion-setting" type="checkbox" ${this.checked(this.preferences.reducedMotion)} />動きを減らす</label><label><input id="contrast-setting" type="checkbox" ${this.checked(this.preferences.highContrast)} />高コントラスト</label><label><input id="text-setting" type="checkbox" ${this.checked(this.preferences.largeText)} />文字を大きく</label></fieldset><p id="connection-status" aria-live="polite">未接続</p><p id="lobby-error" role="alert"></p><section id="room-area" hidden><h2>合言葉 <strong id="current-room"></strong></h2><button id="copy-invite" type="button">招待リンクをコピー</button><fieldset id="game-options"><legend>ステージと難易度（作成者が選択）</legend><label>ステージ<select id="stage-select"><option value="school-gate">校門まで走れ！</option><option value="rooftop-relay">屋上リレー！</option><option value="gym-escape">体育館脱出！</option></select></label><label>難易度<select id="difficulty-select"><option value="casual">やさしい（240秒・復帰が早い）</option><option value="standard" selected>標準（180秒）</option><option value="challenge">挑戦（150秒・復帰が遅い）</option></select></label></fieldset><fieldset id="role-select"><legend>役割を選ぶ</legend><label><input type="radio" name="player-role" value="runner" checked />ランナー<small>速く走れる</small></label><label><input type="radio" name="player-role" value="jumper" />ジャンパー<small>高く跳べる</small></label><label><input type="radio" name="player-role" value="supporter" />サポーター<small>遠くから助けられる</small></label></fieldset><ul id="player-list"></ul><div class="lobby-actions"><button id="ready-button" type="button">準備OK</button><button id="start-button" type="button">ゲーム開始</button></div></section><footer class="legal-links"><a href="https://github.com/simosimo1333-png/games-5p-gpt/blob/main/docs/privacy-policy.md" target="_blank" rel="noreferrer">プライバシー</a><a href="https://github.com/simosimo1333-png/games-5p-gpt/blob/main/docs/terms-of-use.md" target="_blank" rel="noreferrer">利用規約</a></footer>`;
+    panel.innerHTML = `<details class="how-to-play" open><summary>遊び方</summary><ol><li>名前を入れ、ルームを作るか合言葉で参加</li><li>役割を選び、全員が「準備OK」</li><li>左右移動とジャンプで進み、2つの床スイッチを仲間と同時に押す</li><li>落ちた仲間の近くで「助ける」を押し、全員でゴールへ到着</li></ol></details><label>表示名<input id="player-name" maxlength="24" autocomplete="nickname" value="${this.escape(networkClient.session?.name ?? "")}" /></label><label>友人用キー<small>招待した6人だけで共有します</small><input id="friend-key" type="password" maxlength="128" autocomplete="off" value="${this.escape(networkClient.friendAccessKey)}" /></label><div class="lobby-actions"><button id="create-room" type="button">ルームを作る</button><span>または</span><input id="room-code" maxlength="6" placeholder="合言葉" autocomplete="off" value="${this.escape(invitedRoom)}" /><button id="join-room" type="button">参加する</button></div><fieldset id="preferences"><legend>遊びやすさ設定</legend><label><input id="sound-setting" type="checkbox" ${this.checked(this.preferences.sound)} />効果音</label><label><input id="motion-setting" type="checkbox" ${this.checked(this.preferences.reducedMotion)} />動きを減らす</label><label><input id="contrast-setting" type="checkbox" ${this.checked(this.preferences.highContrast)} />高コントラスト</label><label><input id="text-setting" type="checkbox" ${this.checked(this.preferences.largeText)} />文字を大きく</label></fieldset><p id="connection-status" aria-live="polite">未接続</p><p id="lobby-error" role="alert"></p><section id="room-area" hidden><h2>合言葉 <strong id="current-room"></strong></h2><button id="copy-invite" type="button">招待リンクをコピー</button><fieldset id="game-options"><legend>ステージと難易度（作成者が選択）</legend><label>ステージ<select id="stage-select"><option value="school-gate">校門まで走れ！</option><option value="rooftop-relay">屋上リレー！</option><option value="gym-escape">体育館脱出！</option></select></label><label>難易度<select id="difficulty-select"><option value="casual">やさしい（240秒・復帰が早い）</option><option value="standard" selected>標準（180秒）</option><option value="challenge">挑戦（150秒・復帰が遅い）</option></select></label></fieldset><fieldset id="role-select"><legend>役割を選ぶ</legend><label><input type="radio" name="player-role" value="runner" checked />ランナー<small>速く走れる</small></label><label><input type="radio" name="player-role" value="jumper" />ジャンパー<small>高く跳べる</small></label><label><input type="radio" name="player-role" value="supporter" />サポーター<small>遠くから助けられる</small></label></fieldset><ul id="player-list"></ul><div class="lobby-actions"><button id="ready-button" type="button">準備OK</button><button id="start-button" type="button">ゲーム開始</button></div></section><footer class="legal-links"><a href="https://github.com/simosimo1333-png/games-5p-gpt/blob/main/docs/privacy-policy.md" target="_blank" rel="noreferrer">プライバシー</a><a href="https://github.com/simosimo1333-png/games-5p-gpt/blob/main/docs/terms-of-use.md" target="_blank" rel="noreferrer">利用規約</a></footer>`;
     document.body.append(panel);
     this.panel = panel;
     panel.addEventListener("click", (event) => {
@@ -107,6 +107,7 @@ export class LobbyScene extends Phaser.Scene {
       this.showError("表示名を入力してください");
       return;
     }
+    this.saveFriendKey();
     this.showError("");
     try {
       this.awaitingFreshSession = true;
@@ -130,6 +131,7 @@ export class LobbyScene extends Phaser.Scene {
       this.showError("合言葉は4〜6文字の英数字です");
       return;
     }
+    this.saveFriendKey();
     this.showError("");
     try {
       this.awaitingFreshSession = true;
@@ -216,6 +218,14 @@ export class LobbyScene extends Phaser.Scene {
   }
   private playerName(): string {
     return (this.panel?.querySelector<HTMLInputElement>("#player-name")?.value ?? "").trim();
+  }
+  private saveFriendKey(): void {
+    const key = this.panel?.querySelector<HTMLInputElement>("#friend-key")?.value ?? "";
+    networkClient.setFriendAccessKey(key);
+    const url = new URL(location.href);
+    if (key.trim()) url.searchParams.set("friend", key.trim());
+    else url.searchParams.delete("friend");
+    history.replaceState(null, "", url);
   }
   private errorText(code: string): string {
     return (
