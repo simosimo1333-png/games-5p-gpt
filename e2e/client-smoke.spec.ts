@@ -93,6 +93,7 @@ test("two devices can create, join, and start the same room", async ({ page, bro
   await guest.locator("#ready-button").click();
   await expect(page.locator("#player-list li").filter({ hasText: "準備OK" })).toHaveCount(2);
   await page.locator("#start-button").click();
+  await expect(page.locator("#countdown-status")).toContainText("スタートまで");
   await expect(page.locator("#lobby-panel")).toBeHidden({ timeout: 6_000 });
   await expect(guest.locator("#lobby-panel")).toBeHidden({ timeout: 6_000 });
 

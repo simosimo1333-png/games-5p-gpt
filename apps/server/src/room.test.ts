@@ -35,6 +35,31 @@ describe("authoritative room", () => {
     expect(room.phase).toBe("playing");
   });
 
+  it("hands room control to the next friend when the host leaves", () => {
+    const room = new Room("ABCDE", "p1", "Player 1", 0);
+    room.join("p2", "Player 2", 0);
+    room.join("p3", "Player 3", 0);
+
+    room.remove("p1");
+
+    expect(room.hostPlayerId).toBe("p2");
+    room.setReady("p2", true);
+    room.setReady("p3", true);
+    room.start("p2", 0);
+    expect(room.phase).toBe("countdown");
+  });
+
+  it("hands over control after the disconnected host's reconnect time expires", () => {
+    const room = new Room("ABCDE", "p1", "Player 1", 0);
+    room.join("p2", "Player 2", 0);
+
+    room.disconnect("p1", 100);
+    room.tick(30_101);
+
+    expect(room.hostPlayerId).toBe("p2");
+    expect(room.players.has("p1")).toBe(false);
+  });
+
   it("reconnects with a valid short-lived token", () => {
     const room = new Room("ABCDE", "p1", "Player 1", 0);
     const joined = room.join("p2", "Player 2", 0);

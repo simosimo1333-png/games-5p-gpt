@@ -227,6 +227,8 @@ export class GameServer {
     const now = Date.now();
     for (const room of this.rooms.rooms.values()) {
       const previous = room.phase;
+      const previousHost = room.hostPlayerId;
+      const previousPlayerCount = room.players.size;
       room.tick(now);
       if (previous !== room.phase) {
         if (room.phase === "playing") this.metrics.gamesStartedTotal += 1;
@@ -248,7 +250,8 @@ export class GameServer {
           roomCode: room.code,
           playerCount: room.players.size,
         });
-      }
+      } else if (previousHost !== room.hostPlayerId || previousPlayerCount !== room.players.size)
+        this.broadcastRoom(room);
       if (room.phase === "playing") this.broadcast(room, room.snapshot(now));
       this.rooms.deleteIfEmpty(room);
     }
