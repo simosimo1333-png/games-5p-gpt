@@ -1,6 +1,8 @@
 import type Phaser from "phaser";
 
 export class Hud {
+  private readonly connection: Phaser.GameObjects.Text;
+  private readonly players: Phaser.GameObjects.Text;
   private readonly timer: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene) {
@@ -24,9 +26,39 @@ export class Hud {
       })
       .setScrollFactor(0)
       .setDepth(20);
+    this.players = scene.add
+      .text(38, 40, "参加者 0/6", {
+        fontFamily: "system-ui",
+        fontSize: "24px",
+        color: "#fff",
+        backgroundColor: "#0f172acc",
+        padding: { x: 14, y: 8 },
+      })
+      .setScrollFactor(0)
+      .setDepth(20);
+    this.connection = scene.add
+      .text(38, 90, "接続済み", {
+        fontFamily: "system-ui",
+        fontSize: "20px",
+        color: "#bbf7d0",
+        backgroundColor: "#0f172acc",
+        padding: { x: 12, y: 6 },
+      })
+      .setScrollFactor(0)
+      .setDepth(20);
   }
 
   update(elapsedSeconds: number): void {
     this.timer.setText(`${elapsedSeconds.toFixed(1)}秒`);
+  }
+
+  setRemaining(remainingMs: number): void {
+    this.timer.setText(`残り ${(remainingMs / 1000).toFixed(1)}秒`);
+  }
+  setPlayers(connected: number, total: number): void {
+    this.players.setText(`参加者 ${connected}/${total}`);
+  }
+  setConnection(text: string, healthy: boolean): void {
+    this.connection.setText(text).setColor(healthy ? "#bbf7d0" : "#fecaca");
   }
 }

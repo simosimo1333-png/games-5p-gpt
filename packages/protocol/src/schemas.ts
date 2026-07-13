@@ -21,9 +21,11 @@ export interface PlayerSnapshot {
   velocityX: number;
   velocityY: number;
   lastProcessedInput: number;
+  finished: boolean;
 }
 
 export type ClientMessage =
+  | (Envelope & { type: "create_room"; player: { id: string; name: string } })
   | (Envelope & {
       type: "join_room";
       roomCode: string;
@@ -31,6 +33,8 @@ export type ClientMessage =
       reconnectToken?: string;
     })
   | (Envelope & { type: "set_ready"; ready: boolean })
+  | (Envelope & { type: "start_game" })
+  | (Envelope & { type: "leave_room" })
   | (Envelope & { type: "input"; sequence: number; left: boolean; right: boolean; jump: boolean })
   | (Envelope & { type: "retry_vote"; retry: boolean })
   | (Envelope & { type: "ping"; sentAt: number });
@@ -41,11 +45,21 @@ export type ProtocolErrorCode =
   | "ROOM_NOT_FOUND"
   | "ROOM_FULL"
   | "ROOM_ALREADY_STARTED"
+  | "NOT_HOST"
+  | "NOT_READY"
+  | "DUPLICATE_PLAYER"
+  | "RECONNECT_TOKEN_INVALID"
   | "PLAYER_NOT_FOUND"
   | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
 export type ServerMessage =
+  | (Envelope & {
+      type: "session_established";
+      roomCode: string;
+      playerId: string;
+      reconnectToken: string;
+    })
   | (Envelope & {
       type: "room_state";
       room: {
@@ -56,7 +70,14 @@ export type ServerMessage =
       };
     })
   | (Envelope & { type: "game_started"; stageId: string; startedAt: number })
-  | (Envelope & { type: "snapshot"; tick: number; serverTime: number; players: PlayerSnapshot[] })
+  | (Envelope & {
+      type: "snapshot";
+      tick: number;
+      serverTime: number;
+      remainingMs: number;
+      gateOpen: boolean;
+      players: PlayerSnapshot[];
+    })
   | (Envelope & { type: "game_event"; event: Record<string, unknown> })
   | (Envelope & {
       type: "game_finished";
@@ -124,13 +145,16 @@ function isPlayerSnapshot(value: unknown): value is PlayerSnapshot {
     isFiniteNumber(value.y) &&
     isFiniteNumber(value.velocityX) &&
     isFiniteNumber(value.velocityY) &&
-    isInteger(value.lastProcessedInput)
+    isInteger(value.lastProcessedInput) &&
+    typeof value.finished === "boolean"
   );
 }
 
 function isClientMessage(input: unknown): input is ClientMessage {
   if (!isRecord(input) || !hasEnvelope(input)) return false;
   switch (input.type) {
+    case "create_room":
+      return isRecord(input.player) && isString(input.player.id) && isString(input.player.name, 24);
     case "join_room":
       return (
         isRoomCode(input.roomCode) &&
@@ -142,6 +166,9 @@ function isClientMessage(input: unknown): input is ClientMessage {
       );
     case "set_ready":
       return typeof input.ready === "boolean";
+    case "start_game":
+    case "leave_room":
+      return true;
     case "input":
       return (
         isInteger(input.sequence) &&
@@ -161,6 +188,13 @@ function isClientMessage(input: unknown): input is ClientMessage {
 function isServerMessage(input: unknown): input is ServerMessage {
   if (!isRecord(input) || !hasEnvelope(input)) return false;
   switch (input.type) {
+    case "session_established":
+      return (
+        isRoomCode(input.roomCode) &&
+        isString(input.playerId) &&
+        isString(input.reconnectToken, 256) &&
+        input.reconnectToken.length >= 16
+      );
     case "room_state":
       return (
         isRecord(input.room) &&
@@ -178,6 +212,8 @@ function isServerMessage(input: unknown): input is ServerMessage {
       return (
         isInteger(input.tick) &&
         isInteger(input.serverTime) &&
+        isInteger(input.remainingMs) &&
+        typeof input.gateOpen === "boolean" &&
         Array.isArray(input.players) &&
         input.players.length <= MAX_PLAYERS &&
         input.players.every(isPlayerSnapshot)
