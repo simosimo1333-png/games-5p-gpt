@@ -24,6 +24,8 @@ const sessionKey = "houkago-dash-session";
 function defaultServerUrl(): string {
   const selected = new URLSearchParams(globalThis.location?.search ?? "").get("server");
   if (selected) return selected;
+  const configured = import.meta.env.VITE_GAME_SERVER_URL?.trim();
+  if (configured) return configured;
   const scheme = globalThis.location?.protocol === "https:" ? "wss" : "ws";
   return `${scheme}://${globalThis.location?.hostname ?? "127.0.0.1"}:8787`;
 }

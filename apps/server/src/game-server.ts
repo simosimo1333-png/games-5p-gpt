@@ -15,9 +15,14 @@ import { RoomManager } from "./room-manager";
 
 interface ClientSession {
   correlationId: string;
+  messagesInWindow: number;
   playerId: string | undefined;
+  rateLimited: boolean;
+  rateWindowStartedAt: number;
   room: Room | undefined;
 }
+
+const messageLimitPerSecond = 120;
 
 export interface GameServerOptions {
   allowedOrigins?: readonly string[];
@@ -43,7 +48,7 @@ export class GameServer {
       response.setHeader("cache-control", "no-store");
       if (request.url === "/health" || request.url === "/metrics") {
         response.writeHead(200, { "content-type": "application/json" });
-        const metrics = this.metrics.snapshot(this.rooms.rooms.size);
+        const metrics = this.metrics.snapshot(this.rooms.rooms.size, request.url === "/metrics");
         response.end(
           JSON.stringify(
             request.url === "/health" ? { ok: true, rooms: metrics.activeRooms } : metrics,
@@ -82,7 +87,10 @@ export class GameServer {
   private onConnection(socket: WebSocket): void {
     const session: ClientSession = {
       correlationId: randomUUID(),
+      messagesInWindow: 0,
       playerId: undefined,
+      rateLimited: false,
+      rateWindowStartedAt: Date.now(),
       room: undefined,
     };
     this.sessions.set(socket, session);
@@ -97,6 +105,21 @@ export class GameServer {
   private onMessage(socket: WebSocket, raw: string): void {
     const session = this.sessions.get(socket);
     if (!session) return;
+    if (session.rateLimited) return;
+    this.metrics.messagesTotal += 1;
+    const now = Date.now();
+    if (now - session.rateWindowStartedAt >= 1_000) {
+      session.rateWindowStartedAt = now;
+      session.messagesInWindow = 0;
+    }
+    session.messagesInWindow += 1;
+    if (session.messagesInWindow > messageLimitPerSecond) {
+      session.rateLimited = true;
+      this.metrics.errorsTotal += 1;
+      this.log.warn({ event: "connection.rate_limited", correlationId: session.correlationId });
+      socket.close(1008, "rate limit exceeded");
+      return;
+    }
     let input: unknown;
     try {
       input = JSON.parse(raw);
@@ -194,6 +217,8 @@ export class GameServer {
       const previous = room.phase;
       room.tick(now);
       if (previous !== room.phase) {
+        if (room.phase === "playing") this.metrics.gamesStartedTotal += 1;
+        if (room.phase === "finished") this.metrics.gamesCompletedTotal += 1;
         this.broadcastRoom(room);
         if (room.phase === "playing")
           this.broadcast(room, {
@@ -229,7 +254,6 @@ export class GameServer {
     reconnectToken: string,
   ): void {
     const previous = this.socketsByPlayer.get(playerId);
-    if (previous && previous !== socket) this.metrics.reconnectsTotal += 1;
     if (previous && previous !== socket) previous.close(4001, "reconnected");
     session.room = room;
     session.playerId = playerId;
@@ -266,7 +290,10 @@ export class GameServer {
   private onClose(socket: WebSocket): void {
     const session = this.sessions.get(socket);
     if (!session) return;
-    if (session.room && session.playerId && this.socketsByPlayer.get(session.playerId) === socket) {
+    const disconnectedDuringRoom = Boolean(
+      session.room && session.playerId && this.socketsByPlayer.get(session.playerId) === socket,
+    );
+    if (session.room && session.playerId && disconnectedDuringRoom) {
       session.room.disconnect(session.playerId);
       this.socketsByPlayer.delete(session.playerId);
       this.broadcastRoom(session.room);
@@ -279,7 +306,7 @@ export class GameServer {
     }
     this.sessions.delete(socket);
     this.metrics.activeConnections = Math.max(0, this.metrics.activeConnections - 1);
-    this.metrics.disconnectsTotal += 1;
+    if (disconnectedDuringRoom) this.metrics.disconnectsTotal += 1;
   }
 
   private broadcastRoom(room: Room): void {

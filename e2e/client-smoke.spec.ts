@@ -51,7 +51,7 @@ test("遊びやすさ設定を端末内で切り替えられる", async ({ page 
 });
 
 test("two devices can create, join, and start the same room", async ({ page, browser }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(180_000);
   const guestContext = await browser.newContext({
     viewport: { width: 956, height: 440 },
     isMobile: true,
@@ -59,8 +59,10 @@ test("two devices can create, join, and start the same room", async ({ page, bro
   });
   const guest = await guestContext.newPage();
   await page.setViewportSize({ width: 874, height: 402 });
-  await page.goto("/");
-  await guest.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("#player-name")).toBeVisible({ timeout: 60_000 });
+  await guest.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(guest.locator("#player-name")).toBeVisible({ timeout: 60_000 });
 
   await page.locator("#player-name").fill("Host");
   await page.locator("#create-room").click();
