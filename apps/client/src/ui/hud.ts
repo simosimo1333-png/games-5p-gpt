@@ -46,6 +46,18 @@ export class Hud {
       })
       .setScrollFactor(0)
       .setDepth(20);
+    scene.add
+      .text(640, 670, "床スイッチは仲間と同時に！　倒れた仲間の近くで HELP / E", {
+        fontFamily: "system-ui",
+        fontSize: "20px",
+        fontStyle: "bold",
+        color: "#fff",
+        backgroundColor: "#0f172acc",
+        padding: { x: 16, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(20);
   }
 
   update(elapsedSeconds: number): void {

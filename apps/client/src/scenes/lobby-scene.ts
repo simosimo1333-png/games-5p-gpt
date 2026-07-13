@@ -2,12 +2,14 @@ import Phaser from "phaser";
 
 import { networkClient, type ConnectionState } from "../network/network-client";
 import { GAME_WIDTH } from "../config/game";
-import type { PlayerSummary, ServerMessage } from "../../../../packages/protocol/src";
+import type { PlayerRole, PlayerSummary, ServerMessage } from "../../../../packages/protocol/src";
 
 export class LobbyScene extends Phaser.Scene {
   private cleanup: Array<() => void> = [];
   private panel: HTMLDivElement | undefined;
   private roomCode = "";
+  private selectedRole: PlayerRole = "runner";
+  private awaitingFreshSession = false;
 
   constructor() {
     super("lobby");
@@ -45,7 +47,7 @@ export class LobbyScene extends Phaser.Scene {
     const panel = document.createElement("div");
     panel.id = "lobby-panel";
     panel.className = "lobby-panel";
-    panel.innerHTML = `<label>表示名<input id="player-name" maxlength="24" autocomplete="nickname" value="${this.escape(networkClient.session?.name ?? "")}" /></label><div class="lobby-actions"><button id="create-room" type="button">ルームを作る</button><span>または</span><input id="room-code" maxlength="6" placeholder="合言葉" autocomplete="off" value="${this.escape(invitedRoom)}" /><button id="join-room" type="button">参加する</button></div><p id="connection-status" aria-live="polite">未接続</p><p id="lobby-error" role="alert"></p><section id="room-area" hidden><h2>合言葉 <strong id="current-room"></strong></h2><button id="copy-invite" type="button">招待リンクをコピー</button><ul id="player-list"></ul><div class="lobby-actions"><button id="ready-button" type="button">準備OK</button><button id="start-button" type="button">ゲーム開始</button></div></section>`;
+    panel.innerHTML = `<details class="how-to-play" open><summary>遊び方</summary><ol><li>名前を入れ、ルームを作るか合言葉で参加</li><li>役割を選び、全員が「準備OK」</li><li>左右移動とジャンプで進み、2つの床スイッチを仲間と同時に押す</li><li>落ちた仲間の近くで「助ける」を押し、全員で校門へ到着</li></ol></details><label>表示名<input id="player-name" maxlength="24" autocomplete="nickname" value="${this.escape(networkClient.session?.name ?? "")}" /></label><div class="lobby-actions"><button id="create-room" type="button">ルームを作る</button><span>または</span><input id="room-code" maxlength="6" placeholder="合言葉" autocomplete="off" value="${this.escape(invitedRoom)}" /><button id="join-room" type="button">参加する</button></div><p id="connection-status" aria-live="polite">未接続</p><p id="lobby-error" role="alert"></p><section id="room-area" hidden><h2>合言葉 <strong id="current-room"></strong></h2><button id="copy-invite" type="button">招待リンクをコピー</button><fieldset id="role-select"><legend>役割を選ぶ</legend><label><input type="radio" name="player-role" value="runner" checked />ランナー<small>速く走れる</small></label><label><input type="radio" name="player-role" value="jumper" />ジャンパー<small>高く跳べる</small></label><label><input type="radio" name="player-role" value="supporter" />サポーター<small>遠くから助けられる</small></label></fieldset><ul id="player-list"></ul><div class="lobby-actions"><button id="ready-button" type="button">準備OK</button><button id="start-button" type="button">ゲーム開始</button></div></section>`;
     document.body.append(panel);
     this.panel = panel;
     panel.querySelector("#create-room")?.addEventListener("click", () => void this.createRoom());
@@ -61,6 +63,13 @@ export class LobbyScene extends Phaser.Scene {
         .writeText(location.href)
         .then(() => this.showError("招待リンクをコピーしました"));
     });
+    panel.querySelector("#role-select")?.addEventListener("change", (event) => {
+      const role = (event.target as HTMLInputElement).value as PlayerRole;
+      if (!["runner", "jumper", "supporter"].includes(role)) return;
+      this.selectedRole = role;
+      networkClient.setRole(role);
+      this.showError("役割を変更したため、もう一度『準備OK』を押してください");
+    });
   }
 
   private async createRoom(): Promise<void> {
@@ -71,8 +80,10 @@ export class LobbyScene extends Phaser.Scene {
     }
     this.showError("");
     try {
+      this.awaitingFreshSession = true;
       await networkClient.createRoom(name);
     } catch (error) {
+      this.awaitingFreshSession = false;
       this.showError(error instanceof Error ? error.message : "接続できません");
     }
   }
@@ -92,8 +103,10 @@ export class LobbyScene extends Phaser.Scene {
     }
     this.showError("");
     try {
+      this.awaitingFreshSession = true;
       await networkClient.joinRoom(code, name);
     } catch (error) {
+      this.awaitingFreshSession = false;
       this.showError(error instanceof Error ? error.message : "接続できません");
     }
   }
@@ -102,9 +115,15 @@ export class LobbyScene extends Phaser.Scene {
     if (message.type === "session_established") {
       this.roomCode = message.roomCode;
       this.showRoom();
+      if (this.awaitingFreshSession) {
+        networkClient.setRole(this.selectedRole);
+        this.awaitingFreshSession = false;
+      }
     } else if (message.type === "room_state") {
       this.roomCode = message.room.code;
       this.renderPlayers(message.room.players, message.room.hostPlayerId);
+      if (message.room.phase === "playing" || message.room.phase === "countdown")
+        this.scene.start("game");
     } else if (message.type === "game_started") this.scene.start("game");
     else if (message.type === "error")
       this.showError(message.message ?? this.errorText(message.code));
@@ -117,7 +136,7 @@ export class LobbyScene extends Phaser.Scene {
       list.innerHTML = players
         .map(
           (player) =>
-            `<li><span class="player-color" style="background:${player.color}"></span>${this.escape(player.name)}${player.id === hostId ? "（作成者）" : ""}<strong>${player.connected ? (player.ready ? "準備OK" : "待機中") : "再接続待ち"}</strong></li>`,
+            `<li><span class="player-color" style="background:${player.color}"></span><span>${this.escape(player.name)}${player.id === hostId ? "（作成者）" : ""}<small>${this.roleText(player.role)}</small></span><strong>${player.connected ? (player.ready ? "準備OK" : "待機中") : "再接続待ち"}</strong></li>`,
         )
         .join("");
     const start = this.panel?.querySelector<HTMLButtonElement>("#start-button");
@@ -165,6 +184,9 @@ export class LobbyScene extends Phaser.Scene {
         } as Record<string, string>
       )[code] ?? "通信エラーが発生しました"
     );
+  }
+  private roleText(role: PlayerRole): string {
+    return { runner: "ランナー", jumper: "ジャンパー", supporter: "サポーター" }[role];
   }
   private escape(value: string): string {
     const span = document.createElement("span");

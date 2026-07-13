@@ -89,6 +89,7 @@ describe("websocket game server", () => {
       left: false,
       right: true,
       jump: true,
+      action: false,
     });
     let processed = 0;
     for (let attempt = 0; attempt < 10 && processed < 1; attempt += 1) {
@@ -139,6 +140,10 @@ describe("websocket game server", () => {
       player: { id: "host", name: "Host" },
     });
     const session = await original.waitFor("session_established");
+    original.send({ version: PROTOCOL_VERSION, type: "set_role", role: "jumper" });
+    await original.waitFor("room_state");
+    const selected = await original.waitFor("room_state");
+    expect(selected.room.players[0]?.role).toBe("jumper");
     original.close();
     await new Promise((resolve) => setTimeout(resolve, 30));
     const restored = await TestClient.connect(server.address());
@@ -154,6 +159,8 @@ describe("websocket game server", () => {
       playerId: "host",
       reconnectToken: session.reconnectToken,
     });
+    const restoredRoom = await restored.waitFor("room_state");
+    expect(restoredRoom.room.players[0]?.role).toBe("jumper");
     expect(server.metrics.reconnectsTotal).toBe(1);
   });
 });

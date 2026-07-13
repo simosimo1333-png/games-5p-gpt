@@ -127,6 +127,10 @@ export class GameServer {
           this.withRoom(session).setReady(this.withPlayer(session), message.ready);
           this.broadcastRoom(this.withRoom(session));
           break;
+        case "set_role":
+          this.withRoom(session).setRole(this.withPlayer(session), message.role);
+          this.broadcastRoom(this.withRoom(session));
+          break;
         case "start_game":
           this.withRoom(session).start(this.withPlayer(session));
           this.broadcastRoom(this.withRoom(session));

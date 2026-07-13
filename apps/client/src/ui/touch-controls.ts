@@ -25,6 +25,13 @@ export class TouchControls {
       () => input.queueJump(),
       () => undefined,
     );
+    this.addButton(
+      scene,
+      1018,
+      "HELP",
+      () => input.queueAction(),
+      () => undefined,
+    );
     scene.input.on("pointerup", (pointer: Phaser.Input.Pointer) => input.release(pointer.id));
     scene.input.on("gameout", () => input.reset());
 
@@ -58,7 +65,7 @@ export class TouchControls {
       .setInteractive();
     scene.add
       .text(x, 630, label, {
-        fontSize: label === "JUMP" ? "23px" : "34px",
+        fontSize: label === "JUMP" || label === "HELP" ? "21px" : "34px",
         color: "#fff",
         fontStyle: "bold",
       })

@@ -122,12 +122,17 @@ export class GameScene extends Phaser.Scene {
     if (this.finished) return;
     const input = this.inputController.read();
     this.player.update(input);
-    if (performance.now() - this.lastInputSentAt >= 50) {
+    if (performance.now() - this.lastInputSentAt >= 50 || input.jump || input.action) {
       this.inputSequence += 1;
-      networkClient.sendInput(this.inputSequence, input.left, input.right, input.jump);
+      networkClient.sendInput(
+        this.inputSequence,
+        input.left,
+        input.right,
+        input.jump,
+        input.action,
+      );
       this.lastInputSentAt = performance.now();
     }
-    this.player.recoverIfFallen(690);
     for (const remote of this.remotePlayers.values()) {
       remote.sprite.x = Phaser.Math.Linear(remote.sprite.x, remote.targetX, 0.22);
       remote.sprite.y = Phaser.Math.Linear(remote.sprite.y, remote.targetY, 0.22);
@@ -161,6 +166,7 @@ export class GameScene extends Phaser.Scene {
     const localId = networkClient.session?.playerId;
     for (const state of message.players) {
       if (state.id === localId) {
+        this.player.sprite.setAlpha(state.downed ? 0.45 : 1);
         const distance = Phaser.Math.Distance.Between(
           this.player.sprite.x,
           this.player.sprite.y,
@@ -196,6 +202,7 @@ export class GameScene extends Phaser.Scene {
       }
       remote.targetX = state.x;
       remote.targetY = state.y;
+      remote.sprite.setAlpha(state.downed ? 0.45 : 1);
     }
   }
 
@@ -208,6 +215,7 @@ export class GameScene extends Phaser.Scene {
       const color = Number.parseInt(player.color.slice(1), 16);
       this.playerColors.set(player.id, color);
       if (player.id === networkClient.session?.playerId) this.player.sprite.setTint(color);
+      if (player.id === networkClient.session?.playerId) this.player.setRole(player.role);
       else this.remotePlayers.get(player.id)?.sprite.setFillStyle(color);
     }
   }

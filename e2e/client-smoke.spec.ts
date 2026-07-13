@@ -6,6 +6,7 @@ test("新しいクライアントがモバイル画面で起動する", async ({
   await expect(page).toHaveTitle("放課後ダッシュ！");
   await expect(page.locator("canvas")).toBeVisible();
   await expect(page.locator("main#app")).toHaveAttribute("aria-label", "放課後ダッシュ！");
+  await expect(page.locator(".how-to-play")).toContainText("落ちた仲間");
   await page.close();
 });
 
@@ -59,6 +60,9 @@ test("two devices can create, join, and start the same room", async ({ page, bro
   await guest.locator("#join-room").click();
   await expect(page.locator("#player-list li")).toHaveCount(2);
   await expect(guest.locator("#player-list li")).toHaveCount(2);
+
+  await guest.locator('input[name="player-role"][value="jumper"]').check();
+  await expect(page.locator("#player-list")).toContainText("ジャンパー");
 
   await page.locator("#ready-button").click();
   await guest.locator("#ready-button").click();

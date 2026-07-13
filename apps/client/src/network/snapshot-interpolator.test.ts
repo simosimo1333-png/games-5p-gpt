@@ -10,6 +10,7 @@ const player = (x: number) => ({
   velocityY: 0,
   lastProcessedInput: 1,
   finished: false,
+  downed: false,
 });
 
 describe("snapshot interpolation", () => {
