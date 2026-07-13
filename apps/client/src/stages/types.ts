@@ -16,6 +16,11 @@ export interface PlatformData extends RectangleData {
 export interface StageData {
   readonly finish: RectangleData;
   readonly id: string;
+  readonly mechanics: {
+    readonly gate: RectangleData;
+    readonly pit: RectangleData;
+    readonly switches: readonly [number, number];
+  };
   readonly name: string;
   readonly platforms: readonly PlatformData[];
   readonly playerSpawn: Point;

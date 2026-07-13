@@ -1,8 +1,10 @@
 import Phaser from "phaser";
 import { PROTOCOL_VERSION } from "../../../../packages/protocol/src";
 
-import { SCHOOL_GATE_STAGE } from "../stages/school-gate";
+import { STAGES } from "../stages";
 import { validateStage } from "../stages/validate";
+import { applyPreferences, loadPreferences } from "../ui/preferences";
+import { soundManager } from "../audio/sound-manager";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -11,8 +13,13 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     this.registry.set("protocolVersion", PROTOCOL_VERSION);
-    const errors = validateStage(SCHOOL_GATE_STAGE);
-    if (errors.length > 0) throw new Error(errors.join("; "));
+    const preferences = loadPreferences();
+    applyPreferences(preferences);
+    soundManager.setPreferences(preferences);
+    for (const stage of Object.values(STAGES)) {
+      const errors = validateStage(stage);
+      if (errors.length > 0) throw new Error(`${stage.id}: ${errors.join("; ")}`);
+    }
     this.scene.start("lobby");
   }
 }

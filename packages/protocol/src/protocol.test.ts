@@ -82,6 +82,25 @@ describe("protocol runtime validation", () => {
     ).toBe(true);
   });
 
+  it("accepts stage and difficulty selection and rejects unknown options", () => {
+    expect(
+      parseClientMessage({
+        version: PROTOCOL_VERSION,
+        type: "set_game_options",
+        stageId: "rooftop-relay",
+        difficulty: "challenge",
+      }).success,
+    ).toBe(true);
+    expect(
+      parseClientMessage({
+        version: PROTOCOL_VERSION,
+        type: "set_game_options",
+        stageId: "unknown",
+        difficulty: "impossible",
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts a complete authoritative snapshot", () => {
     const result = parseServerMessage({
       version: PROTOCOL_VERSION,

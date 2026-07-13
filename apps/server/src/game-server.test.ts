@@ -76,12 +76,21 @@ describe("websocket game server", () => {
       player: { id: "guest", name: "Guest" },
     });
     await guest.waitFor("session_established");
+    host.send({
+      version: PROTOCOL_VERSION,
+      type: "set_game_options",
+      stageId: "rooftop-relay",
+      difficulty: "casual",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 30));
     host.send({ version: PROTOCOL_VERSION, type: "set_ready", ready: true });
     guest.send({ version: PROTOCOL_VERSION, type: "set_ready", ready: true });
     await new Promise((resolve) => setTimeout(resolve, 30));
     host.send({ version: PROTOCOL_VERSION, type: "start_game" });
-    await expect(host.waitFor("game_started")).resolves.toMatchObject({ stageId: "school-gate" });
-    await expect(guest.waitFor("game_started")).resolves.toMatchObject({ stageId: "school-gate" });
+    await expect(host.waitFor("game_started")).resolves.toMatchObject({ stageId: "rooftop-relay" });
+    await expect(guest.waitFor("game_started")).resolves.toMatchObject({
+      stageId: "rooftop-relay",
+    });
     host.send({
       version: PROTOCOL_VERSION,
       type: "input",
@@ -125,8 +134,25 @@ describe("websocket game server", () => {
       response.json(),
     )) as Record<string, unknown>;
     expect(health.ok).toBe(true);
+    const healthResponse = await fetch(`http://127.0.0.1:${server.address()}/health`);
+    expect(healthResponse.headers.get("x-content-type-options")).toBe("nosniff");
     expect(metrics).toMatchObject({ activeConnections: 1, connectionsTotal: 1, activeRooms: 0 });
     expect(JSON.stringify(metrics)).not.toMatch(/token|name/i);
+  });
+
+  it("rejects websocket origins outside the production allowlist", async () => {
+    const server = new GameServer({ port: 0, allowedOrigins: ["https://game.example"] });
+    servers.push(server);
+    const rejected = new WebSocket(`ws://127.0.0.1:${server.address()}`, {
+      origin: "https://evil.example",
+    });
+    await expect(
+      new Promise<void>((resolve, reject) => {
+        rejected.once("open", resolve);
+        rejected.once("error", reject);
+      }),
+    ).rejects.toBeDefined();
+    rejected.close();
   });
 
   it("restores the same player through a websocket reconnection", async () => {

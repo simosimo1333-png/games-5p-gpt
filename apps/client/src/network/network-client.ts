@@ -2,8 +2,10 @@ import {
   parseServerMessage,
   PROTOCOL_VERSION,
   type ClientMessage,
+  type Difficulty,
   type PlayerRole,
   type ServerMessage,
+  type StageId,
 } from "../../../../packages/protocol/src";
 
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "reconnecting";
@@ -124,6 +126,9 @@ export class NetworkClient {
   }
   setRole(role: PlayerRole): void {
     this.send({ version: PROTOCOL_VERSION, type: "set_role", role });
+  }
+  setGameOptions(stageId: StageId, difficulty: Difficulty): void {
+    this.send({ version: PROTOCOL_VERSION, type: "set_game_options", stageId, difficulty });
   }
   startGame(): void {
     this.send({ version: PROTOCOL_VERSION, type: "start_game" });

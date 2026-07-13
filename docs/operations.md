@@ -1,5 +1,12 @@
 # 運用・障害対応
 
+## 本番の必須設定
+
+- `PORT`: 公開サービスから割り当てられた待受ポート
+- `ALLOWED_ORIGINS`: 接続を許可するクライアントURLをカンマ区切りで指定する（例: `https://games-5p-gpt.pages.dev`）
+
+本番では `ALLOWED_ORIGINS` を空にしないでください。許可リスト外のWebサイトからのWebSocket接続は拒否します。
+
 ## ヘルスチェック
 
 サーバーの `/health` は次を返します。

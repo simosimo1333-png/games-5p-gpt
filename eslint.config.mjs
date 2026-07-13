@@ -30,5 +30,11 @@ export default tseslint.config(
       "@typescript-eslint/no-misused-promises": "error",
     },
   },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: { console: "readonly", process: "readonly" },
+    },
+  },
   prettier,
 );

@@ -20,6 +20,7 @@ interface ClientSession {
 }
 
 export interface GameServerOptions {
+  allowedOrigins?: readonly string[];
   logger?: Logger;
   port?: number;
 }
@@ -37,6 +38,9 @@ export class GameServer {
   constructor(options: GameServerOptions = {}) {
     this.log = options.logger ?? logger;
     this.httpServer = createServer((request, response) => {
+      response.setHeader("x-content-type-options", "nosniff");
+      response.setHeader("referrer-policy", "no-referrer");
+      response.setHeader("cache-control", "no-store");
       if (request.url === "/health" || request.url === "/metrics") {
         response.writeHead(200, { "content-type": "application/json" });
         const metrics = this.metrics.snapshot(this.rooms.rooms.size);
@@ -49,7 +53,13 @@ export class GameServer {
       }
       response.writeHead(404).end();
     });
-    this.wss = new WebSocketServer({ server: this.httpServer });
+    const allowedOrigins = new Set(options.allowedOrigins ?? []);
+    const verifyClient: WebSocket.VerifyClientCallbackSync = ({ origin }) =>
+      allowedOrigins.size === 0 || allowedOrigins.has(origin);
+    this.wss = new WebSocketServer({
+      server: this.httpServer,
+      verifyClient,
+    });
     this.wss.on("connection", (socket) => this.onConnection(socket));
     this.httpServer.listen(options.port ?? 8787);
     this.tickTimer = setInterval(() => this.tick(), 50);
@@ -131,6 +141,14 @@ export class GameServer {
           this.withRoom(session).setRole(this.withPlayer(session), message.role);
           this.broadcastRoom(this.withRoom(session));
           break;
+        case "set_game_options":
+          this.withRoom(session).setGameOptions(
+            this.withPlayer(session),
+            message.stageId,
+            message.difficulty,
+          );
+          this.broadcastRoom(this.withRoom(session));
+          break;
         case "start_game":
           this.withRoom(session).start(this.withPlayer(session));
           this.broadcastRoom(this.withRoom(session));
@@ -181,7 +199,7 @@ export class GameServer {
           this.broadcast(room, {
             version: PROTOCOL_VERSION,
             type: "game_started",
-            stageId: "school-gate",
+            stageId: room.stageId,
             startedAt: now,
           });
         if (room.phase === "finished") {

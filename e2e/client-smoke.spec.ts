@@ -7,6 +7,7 @@ test("新しいクライアントがモバイル画面で起動する", async ({
   await expect(page.locator("canvas")).toBeVisible();
   await expect(page.locator("main#app")).toHaveAttribute("aria-label", "放課後ダッシュ！");
   await expect(page.locator(".how-to-play")).toContainText("落ちた仲間");
+  await expect(page.locator("#preferences")).toContainText("高コントラスト");
   await page.close();
 });
 
@@ -37,6 +38,18 @@ test("canvas stays inside the latest iPhone viewport", async ({ page }) => {
   }
 });
 
+test("遊びやすさ設定を端末内で切り替えられる", async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto("/");
+  await page.locator("#contrast-setting").check();
+  await page.locator("#motion-setting").check();
+  await page.locator("#text-setting").check();
+  await expect(page.locator("body")).toHaveClass(/high-contrast/);
+  await expect(page.locator("body")).toHaveClass(/reduced-motion/);
+  await expect(page.locator("body")).toHaveClass(/large-text/);
+  await expect(page.locator(".legal-links")).toContainText("プライバシー");
+});
+
 test("two devices can create, join, and start the same room", async ({ page, browser }) => {
   test.setTimeout(90_000);
   const guestContext = await browser.newContext({
@@ -55,11 +68,16 @@ test("two devices can create, join, and start the same room", async ({ page, bro
   const roomCode = await page.locator("#current-room").textContent();
   expect(roomCode).toMatch(/^[A-Z0-9]{5}$/);
 
+  await page.locator("#stage-select").selectOption("rooftop-relay");
+  await page.locator("#difficulty-select").selectOption("casual");
+
   await guest.locator("#player-name").fill("Guest");
   await guest.locator("#room-code").fill(roomCode ?? "");
   await guest.locator("#join-room").click();
   await expect(page.locator("#player-list li")).toHaveCount(2);
   await expect(guest.locator("#player-list li")).toHaveCount(2);
+  await expect(guest.locator("#stage-select")).toHaveValue("rooftop-relay");
+  await expect(guest.locator("#difficulty-select")).toHaveValue("casual");
 
   await guest.locator('input[name="player-role"][value="jumper"]').check();
   await expect(page.locator("#player-list")).toContainText("ジャンパー");

@@ -3,15 +3,17 @@ import { randomBytes } from "node:crypto";
 import {
   MAX_PLAYERS,
   PROTOCOL_VERSION,
+  type Difficulty,
   type PlayerRole,
   type PlayerSnapshot,
   type PlayerSummary,
   type ServerMessage,
+  type StageId,
 } from "../../../packages/protocol/src";
+import { AUTO_REVIVE_MS, DIFFICULTY_DURATION_MS, STAGE_RULES } from "./stage-rules";
 
 const PLAYER_COLORS = ["#EF4444", "#3B82F6", "#22C55E", "#EAB308", "#A855F7", "#F97316"] as const;
 const RECONNECT_GRACE_MS = 30_000;
-const GAME_DURATION_MS = 180_000;
 const INPUTS_PER_SECOND = 30;
 
 export type RoomPhase = "lobby" | "countdown" | "playing" | "finished";
@@ -63,6 +65,8 @@ export class Room {
   readonly players = new Map<string, PlayerState>();
   phase: RoomPhase = "lobby";
   gateOpen = false;
+  stageId: StageId = "school-gate";
+  difficulty: Difficulty = "standard";
   tickNumber = 0;
   private countdownEndsAt = 0;
   private gameStartedAt = 0;
@@ -117,6 +121,16 @@ export class Room {
     const player = this.requirePlayer(playerId);
     player.role = role;
     player.ready = false;
+  }
+
+  setGameOptions(playerId: string, stageId: StageId, difficulty: Difficulty): void {
+    if (playerId !== this.hostPlayerId)
+      throw new RoomError("NOT_HOST", "作成者だけがステージと難易度を変更できます");
+    if (this.phase !== "lobby")
+      throw new RoomError("ROOM_ALREADY_STARTED", "ゲーム開始後は設定を変更できません");
+    this.stageId = stageId;
+    this.difficulty = difficulty;
+    for (const player of this.players.values()) player.ready = false;
   }
 
   start(playerId: string, now = Date.now()): void {
@@ -196,7 +210,8 @@ export class Room {
     const active = [...this.players.values()].filter((player) => player.connected);
     if (active.length < 2) this.finish("aborted");
     else if (active.every((player) => player.finished)) this.finish("cleared");
-    else if (now - this.gameStartedAt >= GAME_DURATION_MS) this.finish("timeout");
+    else if (now - this.gameStartedAt >= DIFFICULTY_DURATION_MS[this.difficulty])
+      this.finish("timeout");
   }
 
   roomState(): Extract<ServerMessage, { type: "room_state" }> {
@@ -207,6 +222,8 @@ export class Room {
         code: this.code,
         phase: this.phase,
         hostPlayerId: this.hostPlayerId,
+        stageId: this.stageId,
+        difficulty: this.difficulty,
         players: [...this.players.values()].map(this.toSummary),
       },
     };
@@ -220,7 +237,8 @@ export class Room {
       serverTime: now,
       remainingMs: Math.max(
         0,
-        GAME_DURATION_MS - Math.max(0, (this.pausedAt ?? now) - this.gameStartedAt),
+        DIFFICULTY_DURATION_MS[this.difficulty] -
+          Math.max(0, (this.pausedAt ?? now) - this.gameStartedAt),
       ),
       gateOpen: this.gateOpen,
       players: [...this.players.values()].map(this.toSnapshot),
@@ -293,15 +311,16 @@ export class Room {
       player.jumpConsumed = true;
     }
     player.velocityY += 1_050 * deltaSeconds;
-    player.x = Math.max(70, Math.min(3_080, player.x + player.velocityX * deltaSeconds));
+    const rules = STAGE_RULES[this.stageId];
+    player.x = Math.max(70, Math.min(rules.worldMaxX, player.x + player.velocityX * deltaSeconds));
     player.y += player.velocityY * deltaSeconds;
-    const overPit = player.x > 2_180 && player.x < 2_360;
+    const overPit = player.x > rules.pit[0] && player.x < rules.pit[1];
     if (player.y >= 500 && !overPit) {
       player.y = 500;
       player.velocityY = 0;
     }
-    if (!this.gateOpen && player.x > 1_520) player.x = 1_520;
-    if (player.x >= 1_900) player.checkpointX = 1_900;
+    if (!this.gateOpen && player.x > rules.gateX) player.x = rules.gateX;
+    if (player.x >= rules.checkpointX) player.checkpointX = rules.checkpointX;
     if (player.y > 680) {
       player.downed = true;
       player.downedAt = now;
@@ -309,7 +328,7 @@ export class Room {
       player.velocityX = 0;
       player.velocityY = 0;
     }
-    if (player.x >= 2_820) {
+    if (player.x >= rules.finishX) {
       player.finished = true;
       player.velocityX = 0;
     }
@@ -336,7 +355,9 @@ export class Room {
     }
     for (const player of this.players.values()) {
       if (!player.downed || player.downedAt === undefined) continue;
-      const autoDelay = player.role === "supporter" ? 3_500 : 5_000;
+      const baseDelay = AUTO_REVIVE_MS[this.difficulty];
+      const autoDelay =
+        player.role === "supporter" ? Math.max(2_000, baseDelay - 1_500) : baseDelay;
       if (now - player.downedAt >= autoDelay) this.revive(player);
     }
   }
@@ -355,8 +376,9 @@ export class Room {
     const active = [...this.players.values()].filter(
       (player) => player.connected && !player.finished,
     );
-    const leftPressed = active.some((player) => Math.abs(player.x - 1_250) <= 60);
-    const rightPressed = active.some((player) => Math.abs(player.x - 1_430) <= 60);
+    const rules = STAGE_RULES[this.stageId];
+    const leftPressed = active.some((player) => Math.abs(player.x - rules.switches[0]) <= 60);
+    const rightPressed = active.some((player) => Math.abs(player.x - rules.switches[1]) <= 60);
     if (leftPressed && rightPressed) {
       this.switchHeldSince ??= now;
       if (now - this.switchHeldSince >= 1_000) this.gateOpen = true;
