@@ -7,6 +7,7 @@ import {
   type ServerMessage,
   type StageId,
 } from "../../../../packages/protocol/src";
+import { resolveServerUrl } from "./server-url";
 
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "reconnecting";
 type MessageListener = (message: ServerMessage) => void;
@@ -23,12 +24,10 @@ const sessionKey = "houkago-dash-session";
 const accessKeyStorageKey = "houkago-dash-friend-key";
 
 function defaultServerUrl(): string {
-  const selected = new URLSearchParams(globalThis.location?.search ?? "").get("server");
-  if (selected) return selected;
-  const configured = import.meta.env.VITE_GAME_SERVER_URL?.trim();
-  if (configured) return configured;
-  const scheme = globalThis.location?.protocol === "https:" ? "wss" : "ws";
-  return `${scheme}://${globalThis.location?.hostname ?? "127.0.0.1"}:8787`;
+  return resolveServerUrl(
+    globalThis.location ?? { hostname: "127.0.0.1", protocol: "http:", search: "" },
+    import.meta.env.VITE_GAME_SERVER_URL,
+  );
 }
 
 export class NetworkClient {
